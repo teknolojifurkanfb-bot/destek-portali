@@ -5,19 +5,34 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { THEMES, applyTheme, getStoredTheme } from '@/lib/themes'
 import type { ThemeName } from '@/lib/themes'
+import {
+  LayoutDashboard,
+  Ticket,
+  FolderOpen,
+  Bot,
+  BookOpen,
+  Users,
+  Tags,
+  Building2,
+  Palette,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',             icon: '◈', label: 'Dashboard',     roles: ['agent', 'admin'] },
-  { href: '/dashboard/tickets',     icon: '⊟', label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'] },
-  { href: '/dashboard/documents',   icon: '📁', label: 'Dokümanlar',   roles: ['customer', 'agent', 'admin'] },
-  { href: '/dashboard/chat',        icon: '◎', label: 'AI Asistan',    roles: ['agent', 'admin'] },
-  { href: '/dashboard/kb',          icon: '◫', label: 'Bilgi Bankası', roles: ['agent', 'admin'] },
+  { href: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard',     roles: ['agent', 'admin'] },
+  { href: '/dashboard/tickets',   icon: Ticket,          label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'] },
+  { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'] },
+  { href: '/dashboard/chat',      icon: Bot,             label: 'AI Asistan',    roles: ['agent', 'admin'] },
+  { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['agent', 'admin'] },
 ]
 
 const ADMIN_ITEMS = [
-  { href: '/dashboard/admin/users',       icon: '◉', label: 'Kullanıcılar' },
-  { href: '/dashboard/admin/statuses',    icon: '◈', label: 'Durumlar' },
-  { href: '/dashboard/admin/departments', icon: '⬡', label: 'Departmanlar' },
+  { href: '/dashboard/admin/users',       icon: Users,     label: 'Kullanıcılar' },
+  { href: '/dashboard/admin/statuses',    icon: Tags,      label: 'Durumlar' },
+  { href: '/dashboard/admin/departments', icon: Building2, label: 'Departmanlar' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -81,6 +96,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const visibleNav = NAV_ITEMS.filter(item => item.roles.includes(role))
   const currentTheme = THEMES.find(t => t.name === theme) || THEMES[0]
 
+  const navItemStyle = (active: boolean) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: collapsed ? '10px 0' : '9px 12px',
+    borderRadius: '10px',
+    textDecoration: 'none',
+    color: active ? '#fff' : 'var(--sidebar-text)',
+    background: active ? 'var(--sidebar-active-bg)' : 'transparent',
+    fontSize: '13px',
+    fontWeight: active ? '600' : '400',
+    transition: 'all 0.15s',
+    justifyContent: collapsed ? 'center' : 'flex-start',
+    position: 'relative' as const,
+    cursor: 'pointer',
+    border: 'none',
+    width: '100%',
+  })
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)', fontFamily: "'Inter', system-ui, sans-serif", transition: 'background 0.3s' }}>
 
@@ -91,9 +125,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden', position: 'relative',
       }}>
-        <div style={{ padding: collapsed ? '20px 0' : '20px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', minHeight: '64px' }}>
-          <div style={{ width: '32px', height: '32px', background: 'var(--accent)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0, margin: collapsed ? '0 auto' : '0' }}>
-            🎧
+
+        {/* Logo */}
+        <div style={{ padding: collapsed ? '18px 0' : '18px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', minHeight: '64px' }}>
+          <div style={{ width: '34px', height: '34px', background: 'var(--accent)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, margin: collapsed ? '0 auto' : '0' }}>
+            <span style={{ fontSize: '18px' }}>🎧</span>
           </div>
           {!collapsed && (
             <div>
@@ -103,26 +139,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </div>
 
-        <nav style={{ flex: 1, padding: collapsed ? '12px 8px' : '12px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: collapsed ? '10px 8px' : '10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
           {visibleNav.map(item => {
             const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+            const Icon = item.icon
             return (
-              <a key={item.href} href={item.href} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: collapsed ? '10px 0' : '9px 12px',
-                borderRadius: '10px', textDecoration: 'none',
-                color: active ? '#fff' : 'var(--sidebar-text)',
-                background: active ? 'var(--sidebar-active-bg)' : 'transparent',
-                fontSize: '13px', fontWeight: active ? '600' : '400',
-                transition: 'all 0.15s',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                position: 'relative',
-              }}
+              <a key={item.href} href={item.href}
+                style={navItemStyle(active)}
                 onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover)' }}
                 onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', background: 'var(--sidebar-active)', borderRadius: '0 3px 3px 0' }} />}
-                <span style={{ fontSize: '16px', color: active ? 'var(--sidebar-active)' : 'var(--sidebar-text)', flexShrink: 0 }}>{item.icon}</span>
+                <Icon size={17} color={active ? 'var(--sidebar-active)' : 'var(--sidebar-text)'} strokeWidth={active ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
                 {!collapsed && <span>{item.label}</span>}
               </a>
             )
@@ -134,23 +163,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {collapsed && <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '8px 4px' }} />}
               {ADMIN_ITEMS.map(item => {
                 const active = pathname.startsWith(item.href)
+                const Icon = item.icon
                 return (
-                  <a key={item.href} href={item.href} style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: collapsed ? '10px 0' : '9px 12px',
-                    borderRadius: '10px', textDecoration: 'none',
-                    color: active ? '#fff' : 'var(--sidebar-text)',
-                    background: active ? 'var(--sidebar-active-bg)' : 'transparent',
-                    fontSize: '13px', fontWeight: active ? '600' : '400',
-                    transition: 'all 0.15s',
-                    justifyContent: collapsed ? 'center' : 'flex-start',
-                    position: 'relative',
-                  }}
+                  <a key={item.href} href={item.href}
+                    style={navItemStyle(active)}
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover)' }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                   >
                     {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', background: 'var(--sidebar-active)', borderRadius: '0 3px 3px 0' }} />}
-                    <span style={{ fontSize: '16px', color: active ? 'var(--sidebar-active)' : 'var(--sidebar-text)', flexShrink: 0 }}>{item.icon}</span>
+                    <Icon size={17} color={active ? 'var(--sidebar-active)' : 'var(--sidebar-text)'} strokeWidth={active ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
                     {!collapsed && <span>{item.label}</span>}
                   </a>
                 )
@@ -159,29 +180,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </nav>
 
-        <div style={{ padding: collapsed ? '12px 8px' : '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {/* Alt kısım */}
+        <div style={{ padding: collapsed ? '10px 8px' : '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+
+          {/* Tema */}
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowTheme(!showTheme)} style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-              padding: collapsed ? '10px 0' : '9px 12px',
-              borderRadius: '10px', background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--sidebar-text)', fontSize: '13px',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              transition: 'background 0.15s',
-            }}
+            <button onClick={() => setShowTheme(!showTheme)}
+              style={{ ...navItemStyle(false), background: 'none', border: 'none' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--sidebar-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
             >
-              <span style={{ fontSize: '16px' }}>{currentTheme.emoji}</span>
+              <Palette size={17} color="var(--sidebar-text)" strokeWidth={1.8} style={{ flexShrink: 0 }} />
               {!collapsed && <span>Tema</span>}
+              {!collapsed && <span style={{ marginLeft: 'auto', fontSize: '14px' }}>{currentTheme.emoji}</span>}
             </button>
 
             {showTheme && (
               <div style={{
-                position: 'absolute', bottom: '44px', left: collapsed ? '64px' : '0',
+                position: 'absolute', bottom: '44px', left: collapsed ? '68px' : '0',
                 background: 'var(--bg-surface)', border: '1px solid var(--border)',
                 borderRadius: '12px', padding: '8px', minWidth: '180px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 100,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 100,
               }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px 8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tema seç</div>
                 {THEMES.map(t => (
@@ -193,17 +212,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     color: theme === t.name ? 'var(--accent-light-text)' : 'var(--text-primary)',
                     fontWeight: theme === t.name ? '600' : '400',
                   }}>
-                    <span>{t.emoji}</span>
+                    <span style={{ fontSize: '16px' }}>{t.emoji}</span>
                     <span>{t.label}</span>
-                    {theme === t.name && <span style={{ marginLeft: 'auto', fontSize: '11px' }}>✓</span>}
+                    {theme === t.name && <span style={{ marginLeft: 'auto' }}>✓</span>}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
+          {/* Kullanıcı */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: collapsed ? '10px 0' : '9px 12px', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
               {userName.charAt(0).toUpperCase()}
             </div>
             {!collapsed && (
@@ -214,34 +234,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
 
-          <button onClick={handleLogout} style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-            padding: collapsed ? '10px 0' : '9px 12px',
-            borderRadius: '10px', background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--sidebar-text)', fontSize: '13px',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            transition: 'background 0.15s',
-          }}
+          {/* Çıkış */}
+          <button onClick={handleLogout}
+            style={{ ...navItemStyle(false), background: 'none', border: 'none' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.1)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
-            <span style={{ fontSize: '16px' }}>⎋</span>
+            <LogOut size={17} color="var(--sidebar-text)" strokeWidth={1.8} style={{ flexShrink: 0 }} />
             {!collapsed && <span>Çıkış yap</span>}
           </button>
         </div>
 
+        {/* Collapse butonu */}
         <button onClick={() => setCollapsed(!collapsed)} style={{
           position: 'absolute', top: '20px', right: '-12px',
           width: '24px', height: '24px', borderRadius: '50%',
           background: 'var(--bg-surface)', border: '1px solid var(--border)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '10px', color: 'var(--text-secondary)', zIndex: 10,
+          color: 'var(--text-secondary)', zIndex: 10,
           boxShadow: 'var(--card-shadow)',
         }}>
-          {collapsed ? '›' : '‹'}
+          {collapsed
+            ? <ChevronRight size={13} />
+            : <ChevronLeft size={13} />
+          }
         </button>
       </aside>
 
+      {/* Ana içerik */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{
           height: '56px', background: 'var(--bg-surface)',
@@ -254,8 +274,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             padding: '7px 14px', borderRadius: '8px',
             background: 'var(--accent)', color: 'var(--accent-text)',
             textDecoration: 'none', fontSize: '13px', fontWeight: '500',
+            display: 'flex', alignItems: 'center', gap: '6px',
           }}>
-            + Yeni Ticket
+            <Plus size={14} />
+            Yeni Ticket
           </a>
         </header>
 
