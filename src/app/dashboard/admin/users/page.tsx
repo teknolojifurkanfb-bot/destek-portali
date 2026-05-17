@@ -34,14 +34,14 @@ const ROLE_LABEL: Record<Role, string> = {
 }
 
 const ALL_PAGES = [
-  { key: 'dashboard',  label: 'Dashboard',      icon: '◈', roles: ['agent', 'admin'] },
-  { key: 'tickets',    label: 'Ticketlar',       icon: '⊟', roles: ['customer', 'agent', 'admin'] },
-  { key: 'documents',  label: 'Dokümanlar',      icon: '📁', roles: ['customer', 'agent', 'admin'] },
-  { key: 'kb',         label: 'Bilgi Bankası',   icon: '◫', roles: ['agent', 'admin'] },
-  { key: 'devices',    label: 'Cihazlar',        icon: '🖥️', roles: ['agent', 'admin'] },
-  { key: 'users',      label: 'Kullanıcılar',    icon: '◉', roles: ['admin'] },
-  { key: 'statuses',   label: 'Durumlar',        icon: '◈', roles: ['admin'] },
-  { key: 'departments',label: 'Departmanlar',    icon: '⬡', roles: ['admin'] },
+  { key: 'dashboard',   label: 'Dashboard',    icon: '◈', roles: ['agent', 'admin'] },
+  { key: 'tickets',     label: 'Ticketlar',    icon: '⊟', roles: ['customer', 'agent', 'admin'] },
+  { key: 'documents',   label: 'Dokümanlar',   icon: '📁', roles: ['customer', 'agent', 'admin'] },
+  { key: 'kb',          label: 'Bilgi Bankası',icon: '◫', roles: ['agent', 'admin'] },
+  { key: 'devices',     label: 'Cihazlar',     icon: '🖥️', roles: ['agent', 'admin'] },
+  { key: 'users',       label: 'Kullanıcılar', icon: '◉', roles: ['admin'] },
+  { key: 'statuses',    label: 'Durumlar',     icon: '◈', roles: ['admin'] },
+  { key: 'departments', label: 'Departmanlar', icon: '⬡', roles: ['admin'] },
 ]
 
 export default function UsersPage() {
@@ -58,11 +58,10 @@ export default function UsersPage() {
   const [resetMsg, setResetMsg]     = useState('')
   const [saving, setSaving]         = useState(false)
   const [toast, setToast]           = useState('')
-  const [inviteEmail, setInvEmail]  = useState('')
+  const [showInvite, setShowInv]    = useState(false)
   const [inviteRole, setInvRole]    = useState<Role>('customer')
   const [inviteDept, setInvDept]    = useState('')
   const [inviteLink, setInvLink]    = useState('')
-  const [showInvite, setShowInv]    = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -148,12 +147,6 @@ export default function UsersPage() {
     setEditForm({ ...editForm, permissions: newPerms })
   }
 
-  function generateInvite() {
-    if (!inviteEmail) return
-    const token = Math.random().toString(36).substring(2, 12)
-    setInvLink(`${window.location.origin}/register?invite=${token}&role=${inviteRole}&dept=${inviteDept}`)
-  }
-
   function showToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(''), 2500)
@@ -163,24 +156,33 @@ export default function UsersPage() {
     return email.endsWith('@destek.local') ? email.replace('@destek.local', '') : email
   }
 
+  function generateInvite() {
+    const token = Math.random().toString(36).substring(2, 12)
+    setInvLink(`${window.location.origin}/register?invite=${token}&role=${inviteRole}&dept=${inviteDept}`)
+  }
+
   const filtered = users.filter(u =>
     filterActive === 'all' ? true : filterActive === 'active' ? u.is_active : !u.is_active
   )
 
   const inputStyle = {
     width: '100%', padding: '9px 12px', border: '1px solid var(--border)',
-    borderRadius: '8px', fontSize: '13px', background: 'var(--bg-elevated)',
+    borderRadius: '8px', fontSize: '14px', background: 'var(--bg-elevated)',
     color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit',
   }
 
   if (loading) return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {[1,2,3].map(i => <div key={i} style={{ height: '60px', background: 'var(--border)', borderRadius: '12px', opacity: 0.4 }} />)}
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {[1,2,3].map(i => <div key={i} style={{ height: '72px', background: 'var(--border)', borderRadius: '12px', opacity: 0.4 }} />)}
     </div>
   )
 
   return (
-    <div style={{ padding: '24px', position: 'relative' }}>
+    <div style={{ padding: '16px' }}>
+      <style>{`
+        .users-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        @media (max-width: 600px) { .users-grid { grid-template-columns: 1fr !important; } }
+      `}</style>
 
       {/* Toast */}
       {toast && (
@@ -189,28 +191,25 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Kullanıcı Düzenleme Paneli */}
+      {/* Düzenleme paneli */}
       {editUser && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex' }}>
           <div onClick={() => setEditUser(null)} style={{ flex: 1, background: 'rgba(0,0,0,0.4)' }} />
-          <div style={{ width: '420px', background: 'var(--bg-surface)', height: '100%', overflowY: 'auto', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.15)' }}>
-            {/* Panel başlık */}
-            <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+          <div style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-surface)', height: '100%', overflowY: 'auto', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.15)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
                 {editUser.full_name?.charAt(0).toUpperCase() || '?'}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{editUser.full_name || 'İsimsiz'}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{displayEmail(editUser.email)}</div>
               </div>
-              <button onClick={() => setEditUser(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
-                <X size={18} />
+              <button onClick={() => setEditUser(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px' }}>
+                <X size={20} />
               </button>
             </div>
 
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-
-              {/* Temel bilgiler */}
               <div>
                 <h3 style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Temel Bilgiler</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -237,32 +236,27 @@ export default function UsersPage() {
                     </select>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Aktif kullanıcı</span>
+                    <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Aktif kullanıcı</span>
                     <button onClick={() => setEditForm({ ...editForm, is_active: !editForm.is_active })}
-                      style={{ width: '40px', height: '22px', borderRadius: '11px', border: 'none', cursor: 'pointer', background: editForm.is_active ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 0.2s' }}>
-                      <div style={{ position: 'absolute', top: '3px', left: editForm.is_active ? '20px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                      style={{ width: '44px', height: '24px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: editForm.is_active ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: '3px', left: editForm.is_active ? '22px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Sayfa izinleri */}
               <div>
                 <h3 style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Sayfa İzinleri</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {ALL_PAGES.map(page => {
                     const hasAccess = (editForm.permissions || []).includes(page.key)
-                    const isDefault = page.roles.includes(editForm.role || 'customer')
                     return (
                       <div key={page.key} onClick={() => togglePermission(page.key)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${hasAccess ? 'var(--accent)' : 'var(--border)'}`, background: hasAccess ? 'var(--accent-light)' : 'var(--bg-elevated)', cursor: 'pointer', transition: 'all 0.15s' }}>
-                        <span style={{ fontSize: '16px' }}>{page.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '500', color: hasAccess ? 'var(--accent-light-text)' : 'var(--text-primary)' }}>{page.label}</div>
-                          {isDefault && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Varsayılan bu rol için</div>}
-                        </div>
-                        <div style={{ width: '18px', height: '18px', borderRadius: '5px', border: `2px solid ${hasAccess ? 'var(--accent)' : 'var(--border)'}`, background: hasAccess ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {hasAccess && <span style={{ color: '#fff', fontSize: '11px', fontWeight: '700' }}>✓</span>}
+                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${hasAccess ? 'var(--accent)' : 'var(--border)'}`, background: hasAccess ? 'var(--accent-light)' : 'var(--bg-elevated)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                        <span style={{ fontSize: '18px' }}>{page.icon}</span>
+                        <span style={{ flex: 1, fontSize: '14px', fontWeight: '500', color: hasAccess ? 'var(--accent-light-text)' : 'var(--text-primary)' }}>{page.label}</span>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '6px', border: `2px solid ${hasAccess ? 'var(--accent)' : 'var(--border)'}`, background: hasAccess ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {hasAccess && <span style={{ color: '#fff', fontSize: '12px', fontWeight: '700' }}>✓</span>}
                         </div>
                       </div>
                     )
@@ -271,42 +265,39 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {/* Kaydet butonu */}
-            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
-              <button onClick={saveEdit} disabled={saving} style={{ width: '100%', padding: '11px', background: saving ? 'var(--border)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <Save size={15} />
-                {saving ? 'Kaydediliyor...' : 'Değişiklikleri kaydet'}
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', position: 'sticky', bottom: 0, background: 'var(--bg-surface)' }}>
+              <button onClick={saveEdit} disabled={saving} style={{ width: '100%', padding: '13px', background: saving ? 'var(--border)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '15px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Save size={16} />
+                {saving ? 'Kaydediliyor...' : 'Kaydet'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Şifre sıfırlama modalı */}
+      {/* Şifre modal */}
       {resetModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '28px', maxWidth: '420px', width: '90%', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>Şifre Sıfırla — {resetModal.full_name}</h2>
-              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetMsg('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>Şifre Sıfırla</h2>
+              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetMsg('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>{resetModal.full_name}</p>
             {resetMsg && (
-              <div style={{ padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', background: resetMsg.startsWith('Hata') ? '#fee2e2' : '#d1fae5', color: resetMsg.startsWith('Hata') ? '#991b1b' : '#065f46' }}>
+              <div style={{ padding: '10px', borderRadius: '8px', marginBottom: '12px', fontSize: '13px', background: resetMsg.startsWith('Hata') ? '#fee2e2' : '#d1fae5', color: resetMsg.startsWith('Hata') ? '#991b1b' : '#065f46' }}>
                 {resetMsg}
               </div>
             )}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Yeni şifre</label>
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="En az 6 karakter"
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '14px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none' }} />
-            </div>
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Yeni şifre (en az 6 karakter)"
+              style={{ ...inputStyle, marginBottom: '12px' }} />
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={resetPassword} disabled={resetting || !newPassword} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                {resetting ? 'Sıfırlanıyor...' : 'Şifreyi sıfırla'}
+              <button onClick={resetPassword} disabled={resetting || !newPassword} style={{ flex: 1, padding: '11px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+                {resetting ? 'Sıfırlanıyor...' : 'Sıfırla'}
               </button>
-              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetMsg('') }} style={{ padding: '10px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetMsg('') }} style={{ padding: '11px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--text-primary)' }}>
                 İptal
               </button>
             </div>
@@ -316,64 +307,53 @@ export default function UsersPage() {
 
       {/* Silme onayı */}
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '28px', maxWidth: '400px', width: '90%', border: '1px solid var(--border)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '360px', border: '1px solid var(--border)' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>Kullanıcıyı sil</h2>
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>Bu işlem geri alınamaz.</p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDelConf(null)} style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>İptal</button>
-              <button onClick={() => deleteUser(deleteConfirm)} style={{ padding: '8px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>Sil</button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setDelConf(null)} style={{ flex: 1, padding: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--text-primary)' }}>İptal</button>
+              <button onClick={() => deleteUser(deleteConfirm)} style={{ flex: 1, padding: '11px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>Sil</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Kullanıcı Yönetimi</h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{users.length} kullanıcı</p>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Kullanıcılar</h1>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{users.length} kullanıcı</p>
         </div>
-        <button onClick={() => setShowInv(!showInvite)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-          <Link size={15} /> Davet et
+        <button onClick={() => setShowInv(!showInvite)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+          <Link size={14} /> Davet
         </button>
       </div>
 
       {/* Davet */}
       {showInvite && (
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>Davet linki oluştur</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Kullanıcı adı</label>
-              <input value={inviteEmail} onChange={e => setInvEmail(e.target.value)} placeholder="kullanici_adi"
-                style={{ ...inputStyle }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Rol</label>
-              <select value={inviteRole} onChange={e => setInvRole(e.target.value as Role)} style={inputStyle}>
-                <option value="customer">Müşteri</option>
-                <option value="agent">Destek Temsilcisi</option>
-                <option value="admin">Yönetici</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Departman</label>
-              <select value={inviteDept} onChange={e => setInvDept(e.target.value)} style={inputStyle}>
-                <option value="">Seçin</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '12px' }}>Davet linki</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+            <select value={inviteRole} onChange={e => setInvRole(e.target.value as Role)} style={inputStyle}>
+              <option value="customer">Müşteri</option>
+              <option value="agent">Destek Temsilcisi</option>
+              <option value="admin">Yönetici</option>
+            </select>
+            <select value={inviteDept} onChange={e => setInvDept(e.target.value)} style={inputStyle}>
+              <option value="">Departman seçin</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
           </div>
-          <button onClick={generateInvite} style={{ padding: '8px 16px', background: 'var(--bg-sidebar)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '12px' }}>
+          <button onClick={generateInvite} style={{ padding: '8px 16px', background: 'var(--bg-sidebar)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '10px' }}>
             Link oluştur
           </button>
           {inviteLink && (
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1, wordBreak: 'break-all' as const }}>{inviteLink}</span>
-              <button onClick={() => { navigator.clipboard.writeText(inviteLink); showToast('Link kopyalandı!') }}
-                style={{ padding: '6px 12px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                <Copy size={12} /> Kopyala
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1, wordBreak: 'break-all' as const }}>{inviteLink}</span>
+              <button onClick={() => { navigator.clipboard.writeText(inviteLink); showToast('Kopyalandı!') }}
+                style={{ padding: '5px 10px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', flexShrink: 0 }}>
+                <Copy size={12} />
               </button>
             </div>
           )}
@@ -381,79 +361,54 @@ export default function UsersPage() {
       )}
 
       {/* Filtreler */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', overflowX: 'auto' as const }}>
         {(['all', 'active', 'passive'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '13px', background: filterActive === f ? 'var(--accent)' : 'var(--bg-surface)', color: filterActive === f ? '#fff' : 'var(--text-secondary)' }}>
+          <button key={f} onClick={() => setFilter(f)} style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '12px', background: filterActive === f ? 'var(--accent)' : 'var(--bg-surface)', color: filterActive === f ? '#fff' : 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {f === 'all' ? `Tümü (${users.length})` : f === 'active' ? `Aktif (${users.filter(u => u.is_active).length})` : `Pasif (${users.filter(u => !u.is_active).length})`}
           </button>
         ))}
       </div>
 
-      {/* Kullanıcı listesi */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
-              {['Kullanıcı', 'Rol', 'Departman', 'Durum', 'İşlemler'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((u, i) => {
-              const rs = ROLE_STYLE[u.role]
-              return (
-                <tr key={u.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none', opacity: u.is_active ? 1 : 0.6 }}>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
-                        {(u.full_name || u.email).charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{u.full_name || '-'}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{displayEmail(u.email)}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', fontWeight: '500', background: rs.bg, color: rs.color }}>
-                      {ROLE_LABEL[u.role]}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    {departments.find(d => d.id === u.department_id)?.name || '-'}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', fontWeight: '500', background: u.is_active ? '#d1fae5' : 'var(--bg-elevated)', color: u.is_active ? '#065f46' : 'var(--text-muted)' }}>
-                      {u.is_active ? 'Aktif' : 'Pasif'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
-                      <button onClick={() => openEdit(u)}
-                        style={{ padding: '5px 10px', border: '1px solid var(--accent)', borderRadius: '6px', background: 'var(--accent-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-light-text)', fontWeight: '500' }}>
-                        <Settings size={12} /> Düzenle
-                      </button>
-                      <button onClick={() => { setResetModal(u); setNewPassword(''); setResetMsg('') }}
-                        style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        <KeyRound size={12} /> Şifre
-                      </button>
-                      <button onClick={() => updateUser(u.id, { is_active: !u.is_active })}
-                        style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {u.is_active ? <UserX size={12} /> : <UserCheck size={12} />}
-                        {u.is_active ? 'Pasif' : 'Aktif'}
-                      </button>
-                      <button onClick={() => setDelConf(u.id)}
-                        style={{ padding: '5px 8px', border: '1px solid #fecaca', borderRadius: '6px', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '12px', color: '#dc2626' }}>
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* Kullanıcı kartları */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {filtered.map(u => {
+          const rs = ROLE_STYLE[u.role]
+          return (
+            <div key={u.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', opacity: u.is_active ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+                  {(u.full_name || u.email).charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.full_name || '-'}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayEmail(u.email)}</div>
+                </div>
+                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', fontWeight: '500', background: rs.bg, color: rs.color, flexShrink: 0 }}>
+                  {ROLE_LABEL[u.role]}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
+                <button onClick={() => openEdit(u)}
+                  style={{ flex: 1, padding: '8px', border: '1px solid var(--accent)', borderRadius: '8px', background: 'var(--accent-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontSize: '13px', color: 'var(--accent-light-text)', fontWeight: '500' }}>
+                  <Settings size={13} /> Düzenle
+                </button>
+                <button onClick={() => { setResetModal(u); setNewPassword(''); setResetMsg('') }}
+                  style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  <KeyRound size={13} />
+                </button>
+                <button onClick={() => updateUser(u.id, { is_active: !u.is_active })}
+                  style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  {u.is_active ? <UserX size={13} /> : <UserCheck size={13} />}
+                </button>
+                <button onClick={() => setDelConf(u.id)}
+                  style={{ padding: '8px 12px', border: '1px solid #fecaca', borderRadius: '8px', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '13px', color: '#dc2626' }}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
