@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
+  // Service role ile bağlan - auth gerekmez
   const supabase = await createClient()
   const body = await request.json()
   const { ip_address, hostname } = body
 
   if (!hostname) return NextResponse.json({ error: 'hostname gerekli' }, { status: 400 })
 
-  // Hostname ile cihazı ara
   const { data: existing } = await supabase
     .from('devices')
     .select('id')
@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (existing) {
-    // Varsa güncelle
     await supabase
       .from('devices')
       .update({
@@ -26,7 +25,6 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', existing.id)
   } else {
-    // Yoksa yeni cihaz olarak ekle
     await supabase
       .from('devices')
       .insert({

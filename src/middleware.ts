@@ -4,8 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Auth sayfaları - giriş gerekmez
-  if (pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/api/auth')) {
+  // Auth ve heartbeat sayfaları - giriş gerekmez
+  if (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/devices/heartbeat')
+  ) {
     return NextResponse.next()
   }
 
@@ -16,7 +21,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Dashboard sayfalarında izin kontrolü
   if (pathname.startsWith('/dashboard')) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -28,18 +32,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Admin her yere erişebilir
     if (profile.role === 'admin') return NextResponse.next()
 
-    // Permissions varsa kontrol et
     if (profile.permissions && profile.permissions.length > 0) {
       const pageMap: Record<string, string> = {
-        '/dashboard/tickets':            'tickets',
-        '/dashboard/documents':          'documents',
-        '/dashboard/devices':            'devices',
-        '/dashboard/kb':                 'kb',
-        '/dashboard/profile':            'profile',
-        '/dashboard':                    'dashboard',
+        '/dashboard/tickets':   'tickets',
+        '/dashboard/documents': 'documents',
+        '/dashboard/devices':   'devices',
+        '/dashboard/kb':        'kb',
+        '/dashboard/profile':   'profile',
+        '/dashboard':           'dashboard',
       }
 
       const pageKey = Object.keys(pageMap).find(k => pathname === k || pathname.startsWith(k + '/'))

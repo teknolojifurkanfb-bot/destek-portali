@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { href: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard',     roles: ['agent', 'admin'],              key: 'dashboard' },
   { href: '/dashboard/tickets',   icon: Ticket,          label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'],  key: 'tickets' },
   { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'],  key: 'documents' },
-  { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['agent', 'admin'],              key: 'kb' },
+  { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['customer', 'agent', 'admin'],  key: 'kb' },
   { href: '/dashboard/devices',   icon: Monitor,         label: 'Cihazlar',      roles: ['agent', 'admin'],              key: 'devices' },
 ]
 

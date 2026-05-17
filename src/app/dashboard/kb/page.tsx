@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { Download, Upload, Trash2, ChevronDown, ChevronUp, X, Plus, Edit2, Save, Image } from 'lucide-react'
+import { Download, Upload, Trash2, ChevronDown, ChevronUp, X, Plus, Edit2, Image } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface KBFile {
@@ -22,6 +22,7 @@ interface KBItem {
   category: string | null
   sort_order: number
   image_url?: string | null
+  image_urls?: string[]
 }
 
 const DEFAULT_STEPS: KBItem[] = [
@@ -36,7 +37,7 @@ const DEFAULT_FAQS: KBItem[] = [
   { id: 'f1', type: 'faq', title: 'BullBase Agent nedir?', content: 'BullBase Agent, bilgisayarınızın durumunu BullBase portalına bildiren küçük bir programdır. Her 30 saniyede bir portala sinyal göndererek bilgisayarınızın online olduğunu bildirir ve IP adresinizi otomatik günceller.', category: 'Agent', sort_order: 1 },
   { id: 'f2', type: 'faq', title: 'Agent çalışıyor mu nasıl anlarım?', content: 'BullBase portalında "Cihazlar" sayfasını açın. Bilgisayarınız yeşil "Online" ikonuyla görünüyorsa agent çalışıyordur.', category: 'Agent', sort_order: 2 },
   { id: 'f3', type: 'faq', title: 'Ticket nasıl oluştururum?', content: 'Sol menüden "Ticketlar" sayfasına gidin, sağ üstteki "Yeni" butonuna tıklayın.', category: 'Ticket', sort_order: 1 },
-  { id: 'f4', type: 'faq', title: 'Şifremi nasıl değiştiririm?', content: 'Sol alttaki profil alanınıza tıklayın, "Profil" sayfasına gidin. "Şifre Değiştir" bölümünden yeni şifrenizi belirleyebilirsiniz.', category: 'Hesap', sort_order: 1 },
+  { id: 'f4', type: 'faq', title: 'Şifremi nasıl değiştiririm?', content: 'Sol alttaki profil alanınıza tıklayın, "Profil" sayfasına gidin.', category: 'Hesap', sort_order: 1 },
 ]
 
 function formatSize(bytes: number) {
@@ -48,28 +49,30 @@ function formatSize(bytes: number) {
 const STEP_ICONS = ['⬇️', '▶️', '✅', '🔄', '🖥️', '⚙️', '📋', '🔧', '💡', '🎯']
 
 export default function KBPage() {
-  const [files, setFiles]           = useState<KBFile[]>([])
-  const [steps, setSteps]           = useState<KBItem[]>([])
-  const [faqs, setFaqs]             = useState<KBItem[]>([])
-  const [userRole, setUserRole]     = useState('')
-  const [uploading, setUploading]   = useState(false)
-  const [openFaq, setOpenFaq]       = useState<string | null>(null)
-  const [activeTab, setActiveTab]   = useState<'guide' | 'downloads' | 'faq'>('guide')
-  const [showUpload, setShowUpload] = useState(false)
-  const [newFile, setNewFile]       = useState({ name: '', description: '', category: 'Agent' })
+  const [files, setFiles]             = useState<KBFile[]>([])
+  const [steps, setSteps]             = useState<KBItem[]>([])
+  const [faqs, setFaqs]               = useState<KBItem[]>([])
+  const [userRole, setUserRole]       = useState('')
+  const [uploading, setUploading]     = useState(false)
+  const [openFaq, setOpenFaq]         = useState<string | null>(null)
+  const [activeTab, setActiveTab]     = useState<'guide' | 'downloads' | 'faq'>('guide')
+  const [showUpload, setShowUpload]   = useState(false)
+  const [newFile, setNewFile]         = useState({ name: '', description: '', category: 'Agent' })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [deleteConfirm, setDel]     = useState<string | null>(null)
-  const [editItem, setEditItem]     = useState<KBItem | null>(null)
-  const [editForm, setEditForm]     = useState({ title: '', content: '', category: '' })
-  const [editImage, setEditImage]   = useState<File | null>(null)
+  const [deleteConfirm, setDel]       = useState<string | null>(null)
+  const [editItem, setEditItem]       = useState<KBItem | null>(null)
+  const [editForm, setEditForm]       = useState({ title: '', content: '', category: '' })
+  const [editImages, setEditImages]   = useState<File[]>([])
+  const [editExistingImgs, setEditExistingImgs] = useState<string[]>([])
   const [showAddStep, setShowAddStep] = useState(false)
   const [showAddFaq, setShowAddFaq]   = useState(false)
-  const [newStep, setNewStep]       = useState({ title: '', content: '' })
-  const [newStepImage, setNewStepImage] = useState<File | null>(null)
-  const [newFaq, setNewFaq]         = useState({ title: '', content: '', category: 'Agent' })
-  const [saving, setSaving]         = useState(false)
-  const fileRef      = useRef<HTMLInputElement>(null)
-  const editImgRef   = useRef<HTMLInputElement>(null)
+  const [newStep, setNewStep]         = useState({ title: '', content: '' })
+  const [newStepImages, setNewStepImages] = useState<File[]>([])
+  const [newFaq, setNewFaq]           = useState({ title: '', content: '', category: 'Agent' })
+  const [saving, setSaving]           = useState(false)
+  const [lightbox, setLightbox]       = useState<string | null>(null)
+  const fileRef       = useRef<HTMLInputElement>(null)
+  const editImgRef    = useRef<HTMLInputElement>(null)
   const newStepImgRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadData() }, [])
@@ -85,7 +88,6 @@ export default function KBPage() {
       const { data } = await supabase.from('kb_files').select('*').order('created_at', { ascending: false })
       setFiles(Array.isArray(data) ? data : [])
     } catch { setFiles([]) }
-
     try {
       const { data } = await supabase.from('kb_content').select('*').order('sort_order')
       if (data && data.length > 0) {
@@ -101,14 +103,19 @@ export default function KBPage() {
     }
   }
 
-  async function uploadImage(file: File): Promise<string | null> {
+  async function uploadImages(imgs: File[]): Promise<string[]> {
     const supabase = createClient()
-    const safeName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase()
-    const path = `steps/${Date.now()}_${safeName}`
-    const { data, error } = await supabase.storage.from('kb-files').upload(path, file, { upsert: true })
-    if (error) return null
-    const { data: urlData } = supabase.storage.from('kb-files').getPublicUrl(data.path)
-    return urlData.publicUrl
+    const urls: string[] = []
+    for (const file of imgs) {
+      const safeName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase()
+      const path = `steps/${Date.now()}_${safeName}`
+      const { data, error } = await supabase.storage.from('kb-files').upload(path, file, { upsert: true })
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from('kb-files').getPublicUrl(data.path)
+        urls.push(urlData.publicUrl)
+      }
+    }
+    return urls
   }
 
   async function handleUpload() {
@@ -132,7 +139,7 @@ export default function KBPage() {
     setUploading(false)
   }
 
-  async function handleDelete(id: string, file_url: string) {
+  async function handleDeleteFile(id: string, file_url: string) {
     const supabase = createClient()
     const path = file_url.split('/kb-files/')[1]
     if (path) await supabase.storage.from('kb-files').remove([path])
@@ -149,14 +156,13 @@ export default function KBPage() {
     if (!newStep.title || !newStep.content) return
     setSaving(true)
     const supabase = createClient()
-    let image_url = null
-    if (newStepImage) image_url = await uploadImage(newStepImage)
+    const image_urls = newStepImages.length > 0 ? await uploadImages(newStepImages) : []
     await supabase.from('kb_content').insert({
       type: 'step', title: newStep.title, content: newStep.content,
-      sort_order: steps.length + 1, image_url,
+      sort_order: steps.length + 1, image_urls,
     })
     setNewStep({ title: '', content: '' })
-    setNewStepImage(null)
+    setNewStepImages([])
     setShowAddStep(false)
     await loadData()
     setSaving(false)
@@ -181,22 +187,23 @@ export default function KBPage() {
     if (!editItem) return
     setSaving(true)
     const supabase = createClient()
-    let image_url = editItem.image_url || null
-    if (editImage) image_url = await uploadImage(editImage)
+    const newUrls = editImages.length > 0 ? await uploadImages(editImages) : []
+    const image_urls = [...editExistingImgs, ...newUrls]
 
     if (editItem.id.length < 10) {
       await supabase.from('kb_content').insert({
         type: editItem.type, title: editForm.title, content: editForm.content,
-        category: editForm.category || null, sort_order: editItem.sort_order, image_url,
+        category: editForm.category || null, sort_order: editItem.sort_order, image_urls,
       })
     } else {
       await supabase.from('kb_content').update({
         title: editForm.title, content: editForm.content,
-        category: editForm.category || null, image_url,
+        category: editForm.category || null, image_urls,
       }).eq('id', editItem.id)
     }
     setEditItem(null)
-    setEditImage(null)
+    setEditImages([])
+    setEditExistingImgs([])
     await loadData()
     setSaving(false)
   }
@@ -206,6 +213,13 @@ export default function KBPage() {
     const supabase = createClient()
     await supabase.from('kb_content').delete().eq('id', item.id)
     await loadData()
+  }
+
+  function openEdit(item: KBItem) {
+    setEditItem(item)
+    setEditForm({ title: item.title || '', content: item.content, category: item.category || '' })
+    setEditExistingImgs(item.image_urls && item.image_urls.length > 0 ? item.image_urls : (item.image_url ? [item.image_url] : []))
+    setEditImages([])
   }
 
   const isAdmin = userRole === 'admin'
@@ -225,15 +239,25 @@ export default function KBPage() {
   return (
     <div style={{ padding: '16px' }}>
 
+      {/* Lightbox */}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px', cursor: 'zoom-out' }}>
+          <img src={lightbox} alt="" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
+          <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Düzenleme modalı */}
       {editItem && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
-          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '480px', border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
                 {editItem.type === 'step' ? 'Adımı Düzenle' : 'SSS Düzenle'}
               </h2>
-              <button onClick={() => { setEditItem(null); setEditImage(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
+              <button onClick={() => setEditItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
@@ -256,22 +280,31 @@ export default function KBPage() {
                   style={{ ...inputStyle, resize: 'vertical' as const }} />
               </div>
 
-              {/* Görsel yükleme - sadece adımlar için */}
               {editItem.type === 'step' && (
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px' }}>Görsel (isteğe bağlı)</label>
-                  <input ref={editImgRef} type="file" accept="image/*" onChange={e => setEditImage(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                  {editItem.image_url && !editImage && (
-                    <img src={editItem.image_url} alt="" style={{ width: '100%', borderRadius: '8px', marginBottom: '8px', maxHeight: '160px', objectFit: 'cover' }} />
-                  )}
-                  {editImage && (
-                    <div style={{ padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                      📷 {editImage.name}
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Görseller</label>
+                  {editExistingImgs.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '6px', marginBottom: '8px' }}>
+                      {editExistingImgs.map((url, i) => (
+                        <div key={i} style={{ position: 'relative' }}>
+                          <img src={url} alt="" style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border)' }} />
+                          <button onClick={() => setEditExistingImgs(prev => prev.filter(u => u !== url))}
+                            style={{ position: 'absolute', top: '3px', right: '3px', width: '18px', height: '18px', borderRadius: '50%', background: '#dc2626', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700' }}>
+                            ×
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
+                  {editImages.length > 0 && (
+                    <div style={{ marginBottom: '8px', fontSize: '12px', color: 'var(--text-secondary)', padding: '8px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                      📷 {editImages.length} yeni görsel: {editImages.map(f => f.name).join(', ')}
+                    </div>
+                  )}
+                  <input ref={editImgRef} type="file" accept="image/*" multiple onChange={e => setEditImages(Array.from(e.target.files || []))} style={{ display: 'none' }} />
                   <button onClick={() => editImgRef.current?.click()}
                     style={{ width: '100%', padding: '9px', border: '1px dashed var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <Image size={14} /> {editImage ? 'Görseli değiştir' : 'Görsel seç'}
+                    <Image size={14} /> Görsel ekle (birden fazla seçebilirsiniz)
                   </button>
                 </div>
               )}
@@ -280,7 +313,7 @@ export default function KBPage() {
                 <button onClick={saveEdit} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
                   {saving ? 'Kaydediliyor...' : 'Kaydet'}
                 </button>
-                <button onClick={() => { setEditItem(null); setEditImage(null) }} style={{ padding: '10px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--text-primary)' }}>İptal</button>
+                <button onClick={() => setEditItem(null)} style={{ padding: '10px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--text-primary)' }}>İptal</button>
               </div>
             </div>
           </div>
@@ -295,7 +328,7 @@ export default function KBPage() {
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>Bu dosya kalıcı olarak silinecek.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setDel(null)} style={{ flex: 1, padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--text-primary)' }}>İptal</button>
-              <button onClick={() => { const f = files.find(f => f.id === deleteConfirm); if (f) handleDelete(f.id, f.file_url) }} style={{ flex: 1, padding: '10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>Sil</button>
+              <button onClick={() => { const f = files.find(f => f.id === deleteConfirm); if (f) handleDeleteFile(f.id, f.file_url) }} style={{ flex: 1, padding: '10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>Sil</button>
             </div>
           </div>
         </div>
@@ -380,42 +413,46 @@ export default function KBPage() {
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>Aşağıdaki adımları takip ederek agent'ı kurabilirsiniz</p>
           </div>
 
-          {steps.map((step, idx) => (
-            <div key={step.id} style={{ ...cardStyle, overflow: 'hidden' }}>
-              <div style={{ padding: '16px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
-                  {STEP_ICONS[idx] || '📋'}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-light-text)', background: 'var(--accent-light)', padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '4px' }}>Adım {idx + 1}</span>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>{step.title}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{step.content}</div>
-                </div>
-                {isAdmin && (
-                  <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                    <button onClick={() => { setEditItem(step); setEditForm({ title: step.title || '', content: step.content, category: step.category || '' }); setEditImage(null) }}
-                      style={{ padding: '5px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
-                      <Edit2 size={13} />
-                    </button>
-                    {step.id.length >= 10 && (
-                      <button onClick={() => deleteItem(step)}
-                        style={{ padding: '5px', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', color: '#dc2626', display: 'flex' }}>
-                        <Trash2 size={13} />
+          {steps.map((step, idx) => {
+            const imgs = step.image_urls && step.image_urls.length > 0 ? step.image_urls : (step.image_url ? [step.image_url] : [])
+            return (
+              <div key={step.id} style={{ ...cardStyle, overflow: 'hidden' }}>
+                <div style={{ padding: '16px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
+                    {STEP_ICONS[idx] || '📋'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-light-text)', background: 'var(--accent-light)', padding: '2px 8px', borderRadius: '20px', display: 'inline-block', marginBottom: '4px' }}>Adım {idx + 1}</span>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>{step.title}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{step.content}</div>
+                  </div>
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                      <button onClick={() => openEdit(step)}
+                        style={{ padding: '5px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                        <Edit2 size={13} />
                       </button>
-                    )}
+                      {step.id.length >= 10 && (
+                        <button onClick={() => deleteItem(step)}
+                          style={{ padding: '5px', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', color: '#dc2626', display: 'flex' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {imgs.length > 0 && (
+                  <div style={{ padding: '0 16px 16px', display: 'grid', gridTemplateColumns: imgs.length === 1 ? '1fr' : 'repeat(2,1fr)', gap: '8px' }}>
+                    {imgs.map((url, i) => (
+                      <img key={i} src={url} alt="" onClick={() => setLightbox(url)}
+                        style={{ width: '100%', borderRadius: '10px', objectFit: 'cover', border: '1px solid var(--border)', cursor: 'zoom-in', maxHeight: imgs.length === 1 ? '280px' : '160px' }} />
+                    ))}
                   </div>
                 )}
               </div>
-              {/* Görsel */}
-              {step.image_url && (
-                <div style={{ padding: '0 16px 16px' }}>
-                  <img src={step.image_url} alt={step.title || ''} style={{ width: '100%', borderRadius: '10px', maxHeight: '280px', objectFit: 'cover', border: '1px solid var(--border)' }} />
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
 
-          {/* Admin - Adım ekle */}
           {isAdmin && (
             showAddStep ? (
               <div style={{ ...cardStyle, padding: '16px' }}>
@@ -423,16 +460,21 @@ export default function KBPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <input value={newStep.title} onChange={e => setNewStep({ ...newStep, title: e.target.value })} placeholder="Adım başlığı" style={inputStyle} />
                   <textarea value={newStep.content} onChange={e => setNewStep({ ...newStep, content: e.target.value })} placeholder="Açıklama" rows={3} style={{ ...inputStyle, resize: 'vertical' as const }} />
-                  <input ref={newStepImgRef} type="file" accept="image/*" onChange={e => setNewStepImage(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                  <input ref={newStepImgRef} type="file" accept="image/*" multiple onChange={e => setNewStepImages(Array.from(e.target.files || []))} style={{ display: 'none' }} />
+                  {newStepImages.length > 0 && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '8px', background: 'var(--bg-elevated)', borderRadius: '8px' }}>
+                      📷 {newStepImages.length} görsel seçildi
+                    </div>
+                  )}
                   <button onClick={() => newStepImgRef.current?.click()}
                     style={{ padding: '9px', border: '1px dashed var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <Image size={14} /> {newStepImage ? `📷 ${newStepImage.name}` : 'Görsel ekle (isteğe bağlı)'}
+                    <Image size={14} /> Görsel ekle (birden fazla seçebilirsiniz)
                   </button>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={addStep} disabled={saving} style={{ flex: 1, padding: '9px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
                       {saving ? '...' : 'Ekle'}
                     </button>
-                    <button onClick={() => { setShowAddStep(false); setNewStepImage(null) }} style={{ padding: '9px 14px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>İptal</button>
+                    <button onClick={() => { setShowAddStep(false); setNewStepImages([]) }} style={{ padding: '9px 14px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>İptal</button>
                   </div>
                 </div>
               </div>
@@ -508,7 +550,7 @@ export default function KBPage() {
                       </button>
                       {isAdmin && (
                         <div style={{ display: 'flex', gap: '4px', padding: '0 12px', flexShrink: 0 }}>
-                          <button onClick={() => { setEditItem(faq); setEditForm({ title: faq.title || '', content: faq.content, category: faq.category || '' }); setEditImage(null) }}
+                          <button onClick={() => openEdit(faq)}
                             style={{ padding: '5px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
                             <Edit2 size={13} />
                           </button>
