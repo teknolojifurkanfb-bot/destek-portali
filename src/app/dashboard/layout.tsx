@@ -27,12 +27,12 @@ const ADMIN_ITEMS = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter()
   const pathname = usePathname()
-  const [role, setRole]           = useState<string>('')
-  const [userName, setUserName]   = useState<string>('')
-  const [userId, setUserId]       = useState<string>('')
-  const [theme, setTheme]         = useState<ThemeName>('light')
-  const [showTheme, setShowTheme] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [role, setRole]             = useState<string>('')
+  const [userName, setUserName]     = useState<string>('')
+  const [userId, setUserId]         = useState<string>('')
+  const [theme, setTheme]           = useState<ThemeName>('light')
+  const [showTheme, setShowTheme]   = useState(false)
+  const [collapsed, setCollapsed]   = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const fetched = useRef(false)
 
@@ -67,7 +67,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     load()
   }, [])
 
-  // Sayfa değişince mobil menüyü kapat
   useEffect(() => { setMobileOpen(false) }, [pathname])
 
   async function changeTheme(t: ThemeName) {
@@ -91,75 +90,57 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const SidebarContent = () => (
     <>
-      {/* Logo */}
-      <div style={{ padding: collapsed ? '18px 0' : '18px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', minHeight: '64px' }}>
-        <div style={{ width: '34px', height: '34px', background: 'var(--accent)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, margin: collapsed ? '0 auto' : '0' }}>
+      <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', minHeight: '64px' }}>
+        <div style={{ width: '34px', height: '34px', background: 'var(--accent)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ fontSize: '18px' }}>🎧</span>
         </div>
-        {!collapsed && (
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>DestekHub</div>
-            <div style={{ fontSize: '10px', color: 'var(--sidebar-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Portal</div>
-          </div>
-        )}
-        {/* Mobil kapat butonu */}
-        <button onClick={() => setMobileOpen(false)} className="mobile-close" style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sidebar-text)', padding: '4px' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>DestekHub</div>
+          <div style={{ fontSize: '10px', color: 'var(--sidebar-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Portal</div>
+        </div>
+        <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sidebar-text)', padding: '4px', display: 'flex' }}>
           <X size={18} />
         </button>
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: collapsed ? '10px 8px' : '10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
         {visibleNav.map(item => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
           const Icon = item.icon
           return (
             <a key={item.href} href={item.href} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
-              padding: collapsed ? '10px 0' : '9px 12px',
-              borderRadius: '10px', textDecoration: 'none',
+              padding: '10px 12px', borderRadius: '10px', textDecoration: 'none',
               color: active ? '#fff' : 'var(--sidebar-text)',
               background: active ? 'var(--sidebar-active-bg)' : 'transparent',
-              fontSize: '13px', fontWeight: active ? '600' : '400',
-              transition: 'all 0.15s',
-              justifyContent: collapsed ? 'center' : 'flex-start',
+              fontSize: '14px', fontWeight: active ? '600' : '400',
               position: 'relative',
-            }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover)' }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-            >
+            }}>
               {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', background: 'var(--sidebar-active)', borderRadius: '0 3px 3px 0' }} />}
-              <Icon size={17} color={active ? 'var(--sidebar-active)' : 'var(--sidebar-text)'} strokeWidth={active ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
-              {!collapsed && <span>{item.label}</span>}
+              <Icon size={18} color={active ? 'var(--sidebar-active)' : 'var(--sidebar-text)'} strokeWidth={active ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
+              <span>{item.label}</span>
             </a>
           )
         })}
 
         {isAdmin && (
           <>
-            {!collapsed && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', padding: '12px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Yönetim</div>}
-            {collapsed && <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '8px 4px' }} />}
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', padding: '12px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Yönetim</div>
             {ADMIN_ITEMS.map(item => {
               const active = pathname.startsWith(item.href)
               const Icon = item.icon
               return (
                 <a key={item.href} href={item.href} style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: collapsed ? '10px 0' : '9px 12px',
-                  borderRadius: '10px', textDecoration: 'none',
+                  padding: '10px 12px', borderRadius: '10px', textDecoration: 'none',
                   color: active ? '#fff' : 'var(--sidebar-text)',
                   background: active ? 'var(--sidebar-active-bg)' : 'transparent',
-                  fontSize: '13px', fontWeight: active ? '600' : '400',
-                  transition: 'all 0.15s',
-                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  fontSize: '14px', fontWeight: active ? '600' : '400',
                   position: 'relative',
-                }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover)' }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                >
+                }}>
                   {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', background: 'var(--sidebar-active)', borderRadius: '0 3px 3px 0' }} />}
-                  <Icon size={17} color={active ? 'var(--sidebar-active)' : 'var(--sidebar-text)'} strokeWidth={active ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
-                  {!collapsed && <span>{item.label}</span>}
+                  <Icon size={18} color={active ? 'var(--sidebar-active)' : 'var(--sidebar-text)'} strokeWidth={active ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
+                  <span>{item.label}</span>
                 </a>
               )
             })}
@@ -167,43 +148,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </nav>
 
-      {/* Alt kısım */}
-      <div style={{ padding: collapsed ? '10px 8px' : '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <div style={{ position: 'relative' }}>
           <button onClick={() => setShowTheme(!showTheme)} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-            padding: collapsed ? '10px 0' : '9px 12px',
-            borderRadius: '10px', background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--sidebar-text)', fontSize: '13px',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            transition: 'background 0.15s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--sidebar-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-          >
-            <Palette size={17} color="var(--sidebar-text)" strokeWidth={1.8} style={{ flexShrink: 0 }} />
-            {!collapsed && <span>Tema</span>}
-            {!collapsed && <span style={{ marginLeft: 'auto', fontSize: '14px' }}>{currentTheme.emoji}</span>}
+            padding: '10px 12px', borderRadius: '10px', background: 'none', border: 'none',
+            cursor: 'pointer', color: 'var(--sidebar-text)', fontSize: '14px',
+          }}>
+            <Palette size={18} color="var(--sidebar-text)" strokeWidth={1.8} />
+            <span>Tema</span>
+            <span style={{ marginLeft: 'auto', fontSize: '16px' }}>{currentTheme.emoji}</span>
           </button>
 
           {showTheme && (
             <div style={{
-              position: 'absolute', bottom: '44px', left: collapsed ? '68px' : '0',
+              position: 'absolute', bottom: '48px', left: '0',
               background: 'var(--bg-surface)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '8px', minWidth: '180px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 100,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 100,
             }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px 8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tema seç</div>
               {THEMES.map(t => (
                 <button key={t.name} onClick={() => changeTheme(t.name)} style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '8px 10px', borderRadius: '8px', border: 'none',
+                  padding: '10px 10px', borderRadius: '8px', border: 'none',
                   background: theme === t.name ? 'var(--accent-light)' : 'transparent',
-                  cursor: 'pointer', fontSize: '13px',
+                  cursor: 'pointer', fontSize: '14px',
                   color: theme === t.name ? 'var(--accent-light-text)' : 'var(--text-primary)',
                   fontWeight: theme === t.name ? '600' : '400',
                 }}>
-                  <span style={{ fontSize: '16px' }}>{t.emoji}</span>
+                  <span style={{ fontSize: '18px' }}>{t.emoji}</span>
                   <span>{t.label}</span>
                   {theme === t.name && <span style={{ marginLeft: 'auto' }}>✓</span>}
                 </button>
@@ -212,31 +186,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: collapsed ? '10px 0' : '9px 12px', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
             {userName.charAt(0).toUpperCase()}
           </div>
-          {!collapsed && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
-              <div style={{ fontSize: '10px', color: 'var(--sidebar-text)', textTransform: 'capitalize' }}>{role}</div>
-            </div>
-          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
+            <div style={{ fontSize: '11px', color: 'var(--sidebar-text)', textTransform: 'capitalize' }}>{role}</div>
+          </div>
         </div>
 
         <button onClick={handleLogout} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-          padding: collapsed ? '10px 0' : '9px 12px',
-          borderRadius: '10px', background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--sidebar-text)', fontSize: '13px',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          transition: 'background 0.15s',
-        }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.1)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          <LogOut size={17} color="var(--sidebar-text)" strokeWidth={1.8} style={{ flexShrink: 0 }} />
-          {!collapsed && <span>Çıkış yap</span>}
+          padding: '10px 12px', borderRadius: '10px', background: 'none', border: 'none',
+          cursor: 'pointer', color: 'var(--sidebar-text)', fontSize: '14px',
+        }}>
+          <LogOut size={18} color="var(--sidebar-text)" strokeWidth={1.8} />
+          <span>Çıkış yap</span>
         </button>
       </div>
     </>
@@ -245,24 +211,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <>
       <style>{`
+        .desktop-sidebar { display: flex; flex-direction: column; }
+        .mobile-overlay { display: none; }
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
-          .mobile-overlay { display: flex !important; }
-          .mobile-close { display: flex !important; }
+          .mobile-overlay { display: block !important; }
+          .hamburger { display: flex !important; }
           .collapse-btn { display: none !important; }
         }
-        @media (min-width: 769px) {
-          .mobile-overlay { display: none !important; }
-        }
+        .hamburger { display: none; }
       `}</style>
 
-      <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)', fontFamily: "'Inter', system-ui, sans-serif", transition: 'background 0.3s' }}>
+      <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)', fontFamily: "'Inter', system-ui, sans-serif" }}>
 
         {/* Desktop Sidebar */}
         <aside className="desktop-sidebar" style={{
           width: collapsed ? '64px' : '240px',
           background: 'var(--bg-sidebar)',
-          display: 'flex', flexDirection: 'column', flexShrink: 0,
+          flexShrink: 0,
           transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
           overflow: 'hidden', position: 'relative',
         }}>
@@ -278,22 +244,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </aside>
 
-        {/* Mobil Sidebar Overlay */}
-        <div className="mobile-overlay" style={{
-          display: 'none', position: 'fixed', inset: 0, zIndex: 200,
-        }}>
-          {/* Backdrop */}
-          <div onClick={() => setMobileOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }} />
-          {/* Drawer */}
-          <aside style={{
-            width: '260px', height: '100%', background: 'var(--bg-sidebar)',
-            display: mobileOpen ? 'flex' : 'none', flexDirection: 'column',
-            position: 'relative', zIndex: 1, transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.25s ease',
-          }}>
-            <SidebarContent />
-          </aside>
-        </div>
+        {/* Mobil Sidebar */}
+        {mobileOpen && (
+          <div className="mobile-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
+            <div onClick={() => setMobileOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+            <aside style={{
+              width: '280px', height: '100%', background: 'var(--bg-sidebar)',
+              display: 'flex', flexDirection: 'column',
+              position: 'absolute', left: 0, top: 0, zIndex: 1,
+            }}>
+              <SidebarContent />
+            </aside>
+          </div>
+        )}
 
         {/* Ana içerik */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
@@ -303,15 +266,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             display: 'flex', alignItems: 'center', padding: '0 16px',
             gap: '12px', flexShrink: 0, boxShadow: 'var(--card-shadow)',
           }}>
-            {/* Hamburger - sadece mobilde */}
-            <button onClick={() => setMobileOpen(true)} style={{
-              display: 'none', background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-primary)', padding: '4px',
-            }} className="hamburger">
+            <button className="hamburger" onClick={() => setMobileOpen(true)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-primary)', padding: '4px', display: 'none',
+            }}>
               <Menu size={22} />
             </button>
-            <style>{`.hamburger { display: none !important; } @media (max-width: 768px) { .hamburger { display: flex !important; } }`}</style>
-
             <div style={{ flex: 1 }} />
             <a href="/dashboard/tickets" style={{
               padding: '7px 14px', borderRadius: '8px',
@@ -325,7 +285,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </header>
 
           <main style={{ flex: 1, overflow: 'auto', background: 'var(--bg-base)' }}
-            onClick={() => { showTheme && setShowTheme(false); mobileOpen && setMobileOpen(false) }}
+            onClick={() => { showTheme && setShowTheme(false) }}
           >
             {children}
           </main>
