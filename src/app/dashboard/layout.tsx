@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Ticket,
   FolderOpen,
-  Bot,
   BookOpen,
   Users,
   Tags,
@@ -25,7 +24,6 @@ const NAV_ITEMS = [
   { href: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard',     roles: ['agent', 'admin'] },
   { href: '/dashboard/tickets',   icon: Ticket,          label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'] },
   { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'] },
-  { href: '/dashboard/chat',      icon: Bot,             label: 'AI Asistan',    roles: ['agent', 'admin'] },
   { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['agent', 'admin'] },
 ]
 
