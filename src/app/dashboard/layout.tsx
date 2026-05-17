@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span style={{ fontSize: '18px' }}>🎧</span>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>DestekHub</div>
+          <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>BullBase</div>
           <div style={{ fontSize: '10px', color: 'var(--sidebar-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Portal</div>
         </div>
         <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sidebar-text)', padding: '4px', display: 'flex' }}>

@@ -52,7 +52,7 @@ function LoginForm() {
       <div style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{ width: '48px', height: '48px', background: '#1d4ed8', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', margin: '0 auto 12px' }}>🎧</div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a' }}>DestekHub</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a' }}>BullBase</h1>
           <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Hesabınıza giriş yapın</p>
         </div>
 
