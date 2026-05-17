@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Monitor, Plus, Trash2, Wifi, WifiOff, ExternalLink, X, Copy, Key } from 'lucide-react'
+import { Monitor, Plus, Trash2, ExternalLink, X, Copy, Key } from 'lucide-react'
 
 interface Device {
   id: string
@@ -24,21 +24,20 @@ interface Department {
 }
 
 export default function DevicesPage() {
-  const [devices, setDevices]       = useState<Device[]>([])
-  const [departments, setDepts]     = useState<Department[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [showNew, setShowNew]       = useState(false)
-  const [deleteConfirm, setDel]     = useState<string | null>(null)
-  const [filterDept, setFilter]     = useState('all')
-  const [filterStatus, setFilterS]  = useState<'all' | 'online' | 'offline'>('all')
-  const [showKey, setShowKey]       = useState<string | null>(null)
-  const [toast, setToast]           = useState('')
-  const [newDevice, setNew]         = useState({ name: '', ip_address: '', description: '', department_id: '' })
-  const [saving, setSaving]         = useState(false)
+  const [devices, setDevices]      = useState<Device[]>([])
+  const [departments, setDepts]    = useState<Department[]>([])
+  const [loading, setLoading]      = useState(true)
+  const [showNew, setShowNew]      = useState(false)
+  const [deleteConfirm, setDel]    = useState<string | null>(null)
+  const [filterDept, setFilter]    = useState('all')
+  const [filterStatus, setFilterS] = useState<'all' | 'online' | 'offline'>('all')
+  const [showKey, setShowKey]      = useState<string | null>(null)
+  const [toast, setToast]          = useState('')
+  const [newDevice, setNew]        = useState({ name: '', ip_address: '', description: '', department_id: '' })
+  const [saving, setSaving]        = useState(false)
 
   useEffect(() => {
     loadData()
-    // Her 30 saniyede online durumu güncelle
     const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -65,15 +64,6 @@ export default function DevicesPage() {
     setSaving(false)
   }
 
-  async function toggleActive(id: string, is_active: boolean) {
-    await fetch('/api/devices', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, is_active }),
-    })
-    await loadData()
-  }
-
   async function deleteDevice(id: string) {
     await fetch('/api/devices', {
       method: 'DELETE',
@@ -84,8 +74,10 @@ export default function DevicesPage() {
     setDel(null)
   }
 
-  function connectVNC(device: Device) {
-    window.location.href = `vnc://${device.ip_address}`
+  function connectTightVNC(device: Device) {
+    // bullbase:// protokolü ile BullBaseLauncher.exe'yi çağır
+    // Launcher TightVNC'yi otomatik açar
+    window.location.href = `bullbase://${device.ip_address}`
   }
 
   function copyKey(key: string) {
@@ -95,7 +87,7 @@ export default function DevicesPage() {
 
   function showToastMsg(msg: string) {
     setToast(msg)
-    setTimeout(() => setToast(''), 2500)
+    setTimeout(() => setToast(''), 3000)
   }
 
   function getLastSeen(last_seen: string | null) {
@@ -155,18 +147,15 @@ export default function DevicesPage() {
                 <X size={18} />
               </button>
             </div>
-
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.6' }}>
               Bu key'i <strong>bullbase_agent.py</strong> dosyasındaki <code style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>AGENT_KEY</code> satırına yapıştırın.
             </p>
-
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
               <code style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)', wordBreak: 'break-all' as const, fontFamily: 'monospace' }}>{showKey}</code>
               <button onClick={() => copyKey(showKey)} style={{ padding: '6px 12px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <Copy size={12} /> Kopyala
               </button>
             </div>
-
             <div style={{ background: 'var(--bg-elevated)', borderRadius: '10px', padding: '14px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.7' }}>
               <strong style={{ color: 'var(--text-primary)' }}>Kurulum adımları:</strong><br />
               1. <code style={{ background: 'var(--bg-surface)', padding: '1px 5px', borderRadius: '3px' }}>bullbase_agent.py</code> dosyasını indirin<br />
@@ -199,8 +188,7 @@ export default function DevicesPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Cihaz Yönetimi</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             <span style={{ color: '#10b981', fontWeight: '600' }}>{devices.filter(d => d.is_online).length} online</span>
-            {' · '}
-            {devices.length} toplam cihaz
+            {' · '}{devices.length} toplam cihaz
           </p>
         </div>
         <button onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
@@ -246,7 +234,7 @@ export default function DevicesPage() {
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={addDevice} disabled={saving} style={{ padding: '10px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                {saving ? 'Ekleniyor...' : 'Ekle ve Agent Key Al'}
+                {saving ? 'Ekleniyor...' : 'Ekle'}
               </button>
               <button onClick={() => setShowNew(false)} style={{ padding: '10px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
                 İptal
@@ -292,7 +280,6 @@ export default function DevicesPage() {
               onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
               onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
             >
-              {/* Başlık */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: device.is_online ? '#d1fae5' : 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
                   <Monitor size={22} color={device.is_online ? '#065f46' : 'var(--text-muted)'} />
@@ -309,7 +296,6 @@ export default function DevicesPage() {
                 </span>
               </div>
 
-              {/* Bilgiler */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
                   <span style={{ color: 'var(--text-muted)', minWidth: '60px' }}>IP:</span>
@@ -329,14 +315,12 @@ export default function DevicesPage() {
                 </div>
               </div>
 
-              {/* Butonlar */}
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button onClick={() => connectVNC(device)} disabled={!device.is_online}
+                <button onClick={() => connectTightVNC(device)} disabled={!device.is_online}
                   style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '8px', background: device.is_online ? 'var(--accent)' : 'var(--border)', color: device.is_online ? '#fff' : 'var(--text-muted)', cursor: device.is_online ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                   <ExternalLink size={13} /> Bağlan
                 </button>
                 <button onClick={() => setShowKey(device.agent_key || '')}
-                  title="Agent Key"
                   style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
                   <Key size={13} /> Key
                 </button>
@@ -350,11 +334,11 @@ export default function DevicesPage() {
         </div>
       )}
 
-      {/* Bilgi notu */}
       <div style={{ marginTop: '24px', padding: '14px 16px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-        <strong style={{ color: 'var(--text-primary)' }}>💡 Nasıl çalışır?</strong><br />
-        Her PC'ye <strong>BullBase Agent</strong> kurulur. Agent her 30 saniyede portala sinyal gönderir, cihaz otomatik Online görünür. 
-        "Key" butonuyla agent kurulum anahtarını alın, "Bağlan" ile VNC bağlantısı başlatın.
+        <strong style={{ color: 'var(--text-primary)' }}>💡 Bağlantı hakkında:</strong><br />
+        Bağlan butonuna tıklayınca <strong>BullBaseLauncher</strong> devreye girer ve TightVNC'yi otomatik açar. 
+        Launcher'ı ilk kez çalıştırmanız gerekir (<code style={{ background: 'var(--bg-surface)', padding: '1px 5px', borderRadius: '3px' }}>BullBaseLauncher.exe</code>). 
+        Karşı PC'de TightVNC Server kurulu ve çalışıyor olmalıdır.
       </div>
     </div>
   )
