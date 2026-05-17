@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
       sender_id: user.id,
       content: body.content,
       is_internal: body.is_internal || false,
+      file_url: body.file_url || null,
+      file_name: body.file_name || null,
+      file_type: body.file_type || null,
     })
     .select()
     .single()

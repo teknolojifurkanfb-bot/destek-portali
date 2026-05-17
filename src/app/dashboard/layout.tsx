@@ -8,7 +8,7 @@ import type { ThemeName } from '@/lib/themes'
 import {
   LayoutDashboard, Ticket, FolderOpen, BookOpen,
   Users, Tags, Building2, Palette, LogOut,
-  ChevronLeft, ChevronRight, Plus, Menu, X,
+  ChevronLeft, ChevronRight, Plus, Menu, X, Monitor,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/tickets',   icon: Ticket,          label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'] },
   { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'] },
   { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['agent', 'admin'] },
+  { href: '/dashboard/devices',   icon: Monitor,         label: 'Cihazlar',      roles: ['agent', 'admin'] },
 ]
 
 const ADMIN_ITEMS = [
@@ -90,9 +91,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const SidebarContent = () => (
     <>
+      {/* Logo */}
       <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', minHeight: '64px' }}>
         <div style={{ width: '34px', height: '34px', background: 'var(--accent)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: '18px' }}>🎧</span>
+          <span style={{ fontSize: '18px' }}>🖥️</span>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>BullBase</div>
@@ -103,6 +105,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
 
+      {/* Nav */}
       <nav style={{ flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
         {visibleNav.map(item => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -148,7 +151,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </nav>
 
+      {/* Alt kısım */}
       <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+
+        {/* Tema */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setShowTheme(!showTheme)} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
@@ -186,16 +192,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px' }}>
+        {/* Profil linki */}
+        <a href="/dashboard/profile" style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '10px 12px', borderRadius: '10px', textDecoration: 'none',
+          background: pathname === '/dashboard/profile' ? 'var(--sidebar-active-bg)' : 'none',
+        }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
             {userName.charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
-            <div style={{ fontSize: '11px', color: 'var(--sidebar-text)', textTransform: 'capitalize' }}>{role}</div>
+            <div style={{ fontSize: '11px', color: 'var(--sidebar-text)', textTransform: 'capitalize' }}>{role} · Profil</div>
           </div>
-        </div>
+        </a>
 
+        {/* Çıkış */}
         <button onClick={handleLogout} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
           padding: '10px 12px', borderRadius: '10px', background: 'none', border: 'none',
