@@ -12,11 +12,11 @@ import {
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard',     roles: ['agent', 'admin'] },
-  { href: '/dashboard/tickets',   icon: Ticket,          label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'] },
-  { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'] },
-  { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['agent', 'admin'] },
-  { href: '/dashboard/devices',   icon: Monitor,         label: 'Cihazlar',      roles: ['agent', 'admin'] },
+  { href: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard',     roles: ['agent', 'admin'],              key: 'dashboard' },
+  { href: '/dashboard/tickets',   icon: Ticket,          label: 'Ticketlar',     roles: ['customer', 'agent', 'admin'],  key: 'tickets' },
+  { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'],  key: 'documents' },
+  { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['agent', 'admin'],              key: 'kb' },
+  { href: '/dashboard/devices',   icon: Monitor,         label: 'Cihazlar',      roles: ['agent', 'admin'],              key: 'devices' },
 ]
 
 const ADMIN_ITEMS = [
@@ -28,13 +28,14 @@ const ADMIN_ITEMS = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter()
   const pathname = usePathname()
-  const [role, setRole]             = useState<string>('')
-  const [userName, setUserName]     = useState<string>('')
-  const [userId, setUserId]         = useState<string>('')
-  const [theme, setTheme]           = useState<ThemeName>('light')
-  const [showTheme, setShowTheme]   = useState(false)
-  const [collapsed, setCollapsed]   = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [role, setRole]                   = useState<string>('')
+  const [userName, setUserName]           = useState<string>('')
+  const [userId, setUserId]               = useState<string>('')
+  const [theme, setTheme]                 = useState<ThemeName>('light')
+  const [showTheme, setShowTheme]         = useState(false)
+  const [collapsed, setCollapsed]         = useState(false)
+  const [mobileOpen, setMobileOpen]       = useState(false)
+  const [userPermissions, setPerms]       = useState<string[] | null>(null)
   const fetched = useRef(false)
 
   useEffect(() => {
@@ -52,13 +53,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) return
       const { data } = await supabase
         .from('profiles')
-        .select('role, full_name, theme, id')
+        .select('role, full_name, theme, id, permissions')
         .eq('id', user.id)
         .single()
       if (data) {
         setRole(data.role)
         setUserName(data.full_name || user.email || '')
         setUserId(data.id)
+        setPerms(data.permissions || null)
         if (data.theme) {
           setTheme(data.theme as ThemeName)
           applyTheme(data.theme as ThemeName)
@@ -86,7 +88,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const isAdmin = role === 'admin'
-  const visibleNav = NAV_ITEMS.filter(item => item.roles.includes(role))
+
+  const visibleNav = NAV_ITEMS.filter(item => {
+    if (!item.roles.includes(role)) return false
+    if (isAdmin) return true
+    if (userPermissions && userPermissions.length > 0) {
+      return userPermissions.includes(item.key)
+    }
+    return true
+  })
+
   const currentTheme = THEMES.find(t => t.name === theme) || THEMES[0]
 
   const SidebarContent = () => (
@@ -153,8 +164,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Alt kısım */}
       <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-
-        {/* Tema */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setShowTheme(!showTheme)} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
@@ -192,7 +201,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </div>
 
-        {/* Profil linki */}
         <a href="/dashboard/profile" style={{
           display: 'flex', alignItems: 'center', gap: '10px',
           padding: '10px 12px', borderRadius: '10px', textDecoration: 'none',
@@ -207,7 +215,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </a>
 
-        {/* Çıkış */}
         <button onClick={handleLogout} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
           padding: '10px 12px', borderRadius: '10px', background: 'none', border: 'none',
@@ -236,7 +243,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)', fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-        {/* Desktop Sidebar */}
         <aside className="desktop-sidebar" style={{
           width: collapsed ? '64px' : '240px',
           background: 'var(--bg-sidebar)',
@@ -256,7 +262,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </aside>
 
-        {/* Mobil Sidebar */}
         {mobileOpen && (
           <div className="mobile-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
             <div onClick={() => setMobileOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
@@ -270,7 +275,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
-        {/* Ana içerik */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           <header style={{
             height: '56px', background: 'var(--bg-surface)',

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { KeyRound, UserX, UserCheck, Trash2, Link, Copy, X } from 'lucide-react'
+import { KeyRound, UserX, UserCheck, Trash2, Link, Copy, X, Settings, Save } from 'lucide-react'
 
 type Role = 'customer' | 'agent' | 'admin'
 
@@ -12,6 +12,7 @@ interface User {
   role: Role
   department_id: string | null
   is_active: boolean
+  permissions: string[] | null
   created_at: string
 }
 
@@ -32,6 +33,17 @@ const ROLE_LABEL: Record<Role, string> = {
   admin:    'Yönetici',
 }
 
+const ALL_PAGES = [
+  { key: 'dashboard',  label: 'Dashboard',      icon: '◈', roles: ['agent', 'admin'] },
+  { key: 'tickets',    label: 'Ticketlar',       icon: '⊟', roles: ['customer', 'agent', 'admin'] },
+  { key: 'documents',  label: 'Dokümanlar',      icon: '📁', roles: ['customer', 'agent', 'admin'] },
+  { key: 'kb',         label: 'Bilgi Bankası',   icon: '◫', roles: ['agent', 'admin'] },
+  { key: 'devices',    label: 'Cihazlar',        icon: '🖥️', roles: ['agent', 'admin'] },
+  { key: 'users',      label: 'Kullanıcılar',    icon: '◉', roles: ['admin'] },
+  { key: 'statuses',   label: 'Durumlar',        icon: '◈', roles: ['admin'] },
+  { key: 'departments',label: 'Departmanlar',    icon: '⬡', roles: ['admin'] },
+]
+
 export default function UsersPage() {
   const [users, setUsers]           = useState<User[]>([])
   const [departments, setDepts]     = useState<Department[]>([])
@@ -39,15 +51,18 @@ export default function UsersPage() {
   const [filterActive, setFilter]   = useState<'all' | 'active' | 'passive'>('all')
   const [deleteConfirm, setDelConf] = useState<string | null>(null)
   const [resetModal, setResetModal] = useState<User | null>(null)
+  const [editUser, setEditUser]     = useState<User | null>(null)
+  const [editForm, setEditForm]     = useState<Partial<User>>({})
   const [newPassword, setNewPassword] = useState('')
   const [resetting, setResetting]   = useState(false)
-  const [resetSuccess, setResetSuccess] = useState('')
+  const [resetMsg, setResetMsg]     = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [toast, setToast]           = useState('')
   const [inviteEmail, setInvEmail]  = useState('')
   const [inviteRole, setInvRole]    = useState<Role>('customer')
   const [inviteDept, setInvDept]    = useState('')
   const [inviteLink, setInvLink]    = useState('')
   const [showInvite, setShowInv]    = useState(false)
-  const [toast, setToast]           = useState('')
 
   useEffect(() => { loadData() }, [])
 
@@ -69,6 +84,20 @@ export default function UsersPage() {
     await loadData()
   }
 
+  async function saveEdit() {
+    if (!editUser) return
+    setSaving(true)
+    await fetch('/api/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editUser.id, ...editForm }),
+    })
+    await loadData()
+    setSaving(false)
+    setEditUser(null)
+    showToast('Kullanıcı güncellendi!')
+  }
+
   async function deleteUser(id: string) {
     await fetch('/api/users', {
       method: 'DELETE',
@@ -81,10 +110,7 @@ export default function UsersPage() {
 
   async function resetPassword() {
     if (!newPassword || !resetModal) return
-    if (newPassword.length < 6) {
-      setResetSuccess('Şifre en az 6 karakter olmalı.')
-      return
-    }
+    if (newPassword.length < 6) { setResetMsg('En az 6 karakter olmalı.'); return }
     setResetting(true)
     const res = await fetch('/api/users/reset-password', {
       method: 'POST',
@@ -93,16 +119,33 @@ export default function UsersPage() {
     })
     const data = await res.json()
     if (data.success) {
-      setResetSuccess('Şifre başarıyla değiştirildi!')
-      setTimeout(() => {
-        setResetModal(null)
-        setNewPassword('')
-        setResetSuccess('')
-      }, 1500)
+      setResetMsg('Şifre başarıyla değiştirildi!')
+      setTimeout(() => { setResetModal(null); setNewPassword(''); setResetMsg('') }, 1500)
     } else {
-      setResetSuccess('Hata: ' + data.error)
+      setResetMsg('Hata: ' + data.error)
     }
     setResetting(false)
+  }
+
+  function openEdit(user: User) {
+    setEditUser(user)
+    setEditForm({
+      full_name: user.full_name,
+      role: user.role,
+      department_id: user.department_id,
+      is_active: user.is_active,
+      permissions: user.permissions || getDefaultPermissions(user.role),
+    })
+  }
+
+  function getDefaultPermissions(role: Role): string[] {
+    return ALL_PAGES.filter(p => p.roles.includes(role)).map(p => p.key)
+  }
+
+  function togglePermission(key: string) {
+    const perms = editForm.permissions || []
+    const newPerms = perms.includes(key) ? perms.filter(p => p !== key) : [...perms, key]
+    setEditForm({ ...editForm, permissions: newPerms })
   }
 
   function generateInvite() {
@@ -117,20 +160,17 @@ export default function UsersPage() {
   }
 
   function displayEmail(email: string) {
-    return email.endsWith('@destek.local') ? '@' + email.replace('@destek.local', '') : email
-  }
-
-  function getDeptName(id: string | null) {
-    return departments.find(d => d.id === id)?.name || '-'
+    return email.endsWith('@destek.local') ? email.replace('@destek.local', '') : email
   }
 
   const filtered = users.filter(u =>
     filterActive === 'all' ? true : filterActive === 'active' ? u.is_active : !u.is_active
   )
 
-  const cardStyle = {
-    background: 'var(--bg-surface)', border: '1px solid var(--border)',
-    borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--card-shadow)',
+  const inputStyle = {
+    width: '100%', padding: '9px 12px', border: '1px solid var(--border)',
+    borderRadius: '8px', fontSize: '13px', background: 'var(--bg-elevated)',
+    color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit',
   }
 
   if (loading) return (
@@ -140,7 +180,7 @@ export default function UsersPage() {
   )
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '24px', position: 'relative' }}>
 
       {/* Toast */}
       {toast && (
@@ -149,42 +189,124 @@ export default function UsersPage() {
         </div>
       )}
 
+      {/* Kullanıcı Düzenleme Paneli */}
+      {editUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex' }}>
+          <div onClick={() => setEditUser(null)} style={{ flex: 1, background: 'rgba(0,0,0,0.4)' }} />
+          <div style={{ width: '420px', background: 'var(--bg-surface)', height: '100%', overflowY: 'auto', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.15)' }}>
+            {/* Panel başlık */}
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                {editUser.full_name?.charAt(0).toUpperCase() || '?'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{editUser.full_name || 'İsimsiz'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{displayEmail(editUser.email)}</div>
+              </div>
+              <button onClick={() => setEditUser(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+
+              {/* Temel bilgiler */}
+              <div>
+                <h3 style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Temel Bilgiler</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px', fontWeight: '500' }}>Ad Soyad</label>
+                    <input value={editForm.full_name || ''} onChange={e => setEditForm({ ...editForm, full_name: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px', fontWeight: '500' }}>Rol</label>
+                    <select value={editForm.role || 'customer'} onChange={e => {
+                      const newRole = e.target.value as Role
+                      setEditForm({ ...editForm, role: newRole, permissions: getDefaultPermissions(newRole) })
+                    }} style={inputStyle}>
+                      <option value="customer">Müşteri</option>
+                      <option value="agent">Destek Temsilcisi</option>
+                      <option value="admin">Yönetici</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px', fontWeight: '500' }}>Departman</label>
+                    <select value={editForm.department_id || ''} onChange={e => setEditForm({ ...editForm, department_id: e.target.value || null })} style={inputStyle}>
+                      <option value="">Seçin</option>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Aktif kullanıcı</span>
+                    <button onClick={() => setEditForm({ ...editForm, is_active: !editForm.is_active })}
+                      style={{ width: '40px', height: '22px', borderRadius: '11px', border: 'none', cursor: 'pointer', background: editForm.is_active ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 0.2s' }}>
+                      <div style={{ position: 'absolute', top: '3px', left: editForm.is_active ? '20px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sayfa izinleri */}
+              <div>
+                <h3 style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Sayfa İzinleri</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {ALL_PAGES.map(page => {
+                    const hasAccess = (editForm.permissions || []).includes(page.key)
+                    const isDefault = page.roles.includes(editForm.role || 'customer')
+                    return (
+                      <div key={page.key} onClick={() => togglePermission(page.key)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${hasAccess ? 'var(--accent)' : 'var(--border)'}`, background: hasAccess ? 'var(--accent-light)' : 'var(--bg-elevated)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                        <span style={{ fontSize: '16px' }}>{page.icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: '500', color: hasAccess ? 'var(--accent-light-text)' : 'var(--text-primary)' }}>{page.label}</div>
+                          {isDefault && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Varsayılan bu rol için</div>}
+                        </div>
+                        <div style={{ width: '18px', height: '18px', borderRadius: '5px', border: `2px solid ${hasAccess ? 'var(--accent)' : 'var(--border)'}`, background: hasAccess ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {hasAccess && <span style={{ color: '#fff', fontSize: '11px', fontWeight: '700' }}>✓</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Kaydet butonu */}
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
+              <button onClick={saveEdit} disabled={saving} style={{ width: '100%', padding: '11px', background: saving ? 'var(--border)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Save size={15} />
+                {saving ? 'Kaydediliyor...' : 'Değişiklikleri kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Şifre sıfırlama modalı */}
       {resetModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '28px', maxWidth: '420px', width: '90%', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>Şifre Sıfırla</h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>{resetModal.full_name}</p>
-              </div>
-              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetSuccess('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>Şifre Sıfırla — {resetModal.full_name}</h2>
+              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetMsg('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
                 <X size={18} />
               </button>
             </div>
-
-            {resetSuccess && (
-              <div style={{ padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', background: resetSuccess.startsWith('Hata') ? '#fee2e2' : '#d1fae5', color: resetSuccess.startsWith('Hata') ? '#991b1b' : '#065f46' }}>
-                {resetSuccess}
+            {resetMsg && (
+              <div style={{ padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', background: resetMsg.startsWith('Hata') ? '#fee2e2' : '#d1fae5', color: resetMsg.startsWith('Hata') ? '#991b1b' : '#065f46' }}>
+                {resetMsg}
               </div>
             )}
-
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Yeni şifre</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="En az 6 karakter"
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '14px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none' }}
-              />
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="En az 6 karakter"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '14px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none' }} />
             </div>
-
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={resetPassword} disabled={resetting || !newPassword} style={{ flex: 1, padding: '10px', background: resetting ? 'var(--border)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+              <button onClick={resetPassword} disabled={resetting || !newPassword} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
                 {resetting ? 'Sıfırlanıyor...' : 'Şifreyi sıfırla'}
               </button>
-              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetSuccess('') }} style={{ padding: '10px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+              <button onClick={() => { setResetModal(null); setNewPassword(''); setResetMsg('') }} style={{ padding: '10px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
                 İptal
               </button>
             </div>
@@ -197,10 +319,10 @@ export default function UsersPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '28px', maxWidth: '400px', width: '90%', border: '1px solid var(--border)' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>Kullanıcıyı sil</h2>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>Bu kullanıcı kalıcı olarak silinecek. Bu işlem geri alınamaz.</p>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>Bu işlem geri alınamaz.</p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => setDelConf(null)} style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>İptal</button>
-              <button onClick={() => deleteUser(deleteConfirm)} style={{ padding: '8px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>Evet, sil</button>
+              <button onClick={() => deleteUser(deleteConfirm)} style={{ padding: '8px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>Sil</button>
             </div>
           </div>
         </div>
@@ -219,18 +341,17 @@ export default function UsersPage() {
 
       {/* Davet */}
       {showInvite && (
-        <div style={{ ...cardStyle, padding: '20px', marginBottom: '20px' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>Davet linki oluştur</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Kullanıcı adı</label>
               <input value={inviteEmail} onChange={e => setInvEmail(e.target.value)} placeholder="kullanici_adi"
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none' }} />
+                style={{ ...inputStyle }} />
             </div>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Rol</label>
-              <select value={inviteRole} onChange={e => setInvRole(e.target.value as Role)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <select value={inviteRole} onChange={e => setInvRole(e.target.value as Role)} style={inputStyle}>
                 <option value="customer">Müşteri</option>
                 <option value="agent">Destek Temsilcisi</option>
                 <option value="admin">Yönetici</option>
@@ -238,8 +359,7 @@ export default function UsersPage() {
             </div>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Departman</label>
-              <select value={inviteDept} onChange={e => setInvDept(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <select value={inviteDept} onChange={e => setInvDept(e.target.value)} style={inputStyle}>
                 <option value="">Seçin</option>
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -269,8 +389,8 @@ export default function UsersPage() {
         ))}
       </div>
 
-      {/* Kullanıcı tablosu */}
-      <div style={cardStyle}>
+      {/* Kullanıcı listesi */}
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
@@ -296,19 +416,12 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <select value={u.role} onChange={e => updateUser(u.id, { role: e.target.value as Role })}
-                      style={{ padding: '4px 8px', border: `1px solid ${rs.color}`, borderRadius: '6px', fontSize: '12px', background: rs.bg, color: rs.color, cursor: 'pointer', fontWeight: '500' }}>
-                      <option value="customer">Müşteri</option>
-                      <option value="agent">Destek Temsilcisi</option>
-                      <option value="admin">Yönetici</option>
-                    </select>
+                    <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', fontWeight: '500', background: rs.bg, color: rs.color }}>
+                      {ROLE_LABEL[u.role]}
+                    </span>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <select value={u.department_id || ''} onChange={e => updateUser(u.id, { department_id: e.target.value || null })}
-                      style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
-                      <option value="">-</option>
-                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                  <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {departments.find(d => d.id === u.department_id)?.name || '-'}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', fontWeight: '500', background: u.is_active ? '#d1fae5' : 'var(--bg-elevated)', color: u.is_active ? '#065f46' : 'var(--text-muted)' }}>
@@ -317,24 +430,22 @@ export default function UsersPage() {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' as const }}>
-                      {/* Şifre sıfırla */}
-                      <button onClick={() => { setResetModal(u); setNewPassword(''); setResetSuccess('') }}
-                        title="Şifre sıfırla"
-                        style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        <KeyRound size={13} /> Şifre
+                      <button onClick={() => openEdit(u)}
+                        style={{ padding: '5px 10px', border: '1px solid var(--accent)', borderRadius: '6px', background: 'var(--accent-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-light-text)', fontWeight: '500' }}>
+                        <Settings size={12} /> Düzenle
                       </button>
-                      {/* Aktif/Pasif */}
-                      <button onClick={() => updateUser(u.id, { is_active: !u.is_active })}
-                        title={u.is_active ? 'Pasif yap' : 'Aktif yap'}
+                      <button onClick={() => { setResetModal(u); setNewPassword(''); setResetMsg('') }}
                         style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {u.is_active ? <UserX size={13} /> : <UserCheck size={13} />}
+                        <KeyRound size={12} /> Şifre
+                      </button>
+                      <button onClick={() => updateUser(u.id, { is_active: !u.is_active })}
+                        style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--bg-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {u.is_active ? <UserX size={12} /> : <UserCheck size={12} />}
                         {u.is_active ? 'Pasif' : 'Aktif'}
                       </button>
-                      {/* Sil */}
                       <button onClick={() => setDelConf(u.id)}
-                        title="Sil"
-                        style={{ padding: '5px 8px', border: '1px solid #fecaca', borderRadius: '6px', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#dc2626' }}>
-                        <Trash2 size={13} />
+                        style={{ padding: '5px 8px', border: '1px solid #fecaca', borderRadius: '6px', background: '#fff5f5', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '12px', color: '#dc2626' }}>
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   </td>
