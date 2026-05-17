@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Plus, ArrowLeft, Send, Filter } from 'lucide-react'
 
 interface TicketStatus {
   id: string
@@ -46,6 +47,7 @@ export default function TicketsPage() {
   const [reply, setReply]         = useState('')
   const [sending, setSending]     = useState(false)
   const [showNew, setShowNew]     = useState(false)
+  const [showFilter, setShowFilter] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [newTicket, setNew]       = useState({
     title: '', description: '', category: '', priority: 'medium', department_id: ''
@@ -92,12 +94,7 @@ export default function TicketsPage() {
   async function sendReply() {
     if (!reply.trim() || !selected || sending) return
     setSending(true)
-    const optimistic = {
-      id: 'temp-' + Date.now(),
-      content: reply,
-      created_at: new Date().toISOString(),
-      profiles: { full_name: 'Siz', role: 'agent' },
-    }
+    const optimistic = { id: 'temp-' + Date.now(), content: reply, created_at: new Date().toISOString(), profiles: { full_name: 'Siz', role: 'agent' } }
     setMessages(prev => [...prev, optimistic])
     setReply('')
     await fetch('/api/tickets/messages', {
@@ -110,7 +107,6 @@ export default function TicketsPage() {
   }
 
   async function updateStatus(ticketId: string, status_id: string) {
-    // Optimistic update — anında güncelle, sonra API'ye gönder
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status_id } : t))
     if (selected?.id === ticketId) setSelected(prev => prev ? { ...prev, status_id } : null)
     fetch('/api/tickets', {
@@ -135,180 +131,152 @@ export default function TicketsPage() {
     setSubmitting(false)
   }
 
-  const filteredCats = newTicket.department_id
-    ? categories.filter(c => c.department_id === newTicket.department_id)
-    : categories
-
+  const filteredCats = newTicket.department_id ? categories.filter(c => c.department_id === newTicket.department_id) : categories
   const filtered = filterStatus === 'all' ? tickets : tickets.filter(t => t.status_id === filterStatus)
 
-  function getStatus(id: string) {
-    return statuses.find(s => s.id === id)
+  function getStatus(id: string) { return statuses.find(s => s.id === id) }
+
+  const inputStyle = {
+    width: '100%', padding: '10px 12px', border: '1px solid var(--border)',
+    borderRadius: '8px', fontSize: '14px', background: 'var(--bg-elevated)',
+    color: 'var(--text-primary)', boxSizing: 'border-box' as const, outline: 'none',
+    fontFamily: 'inherit',
   }
 
-  if (loading) {
-    return (
-      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {[1,2,3].map(i => (
-          <div key={i} style={{ height: '64px', background: '#f1f5f9', borderRadius: '10px', animation: 'pulse 1.5s infinite' }} />
-        ))}
-        <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>
-      </div>
-    )
-  }
+  const selectStyle = { ...inputStyle }
 
-  // Detay sayfası
+  if (loading) return (
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {[1,2,3].map(i => <div key={i} style={{ height: '80px', background: 'var(--border)', borderRadius: '12px', opacity: 0.4 }} />)}
+    </div>
+  )
+
+  // Detay
   if (selected) {
     const status = getStatus(selected.status_id)
     const prio = PRIORITY_STYLE[selected.priority]
     return (
-      <div style={{ padding: '24px', maxWidth: '800px' }}>
-        <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px', marginBottom: '16px' }}>
-          ← Geri dön
-        </button>
-
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-            <div>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>{selected.ticket_no} · {selected.category}</div>
-              <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '10px' }}>{selected.title}</div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', fontWeight: '500', background: prio.bg, color: prio.color }}>
-                  {PRIORITY_LABEL[selected.priority]}
-                </span>
-                {selected.departments && (
-                  <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: '#f1f5f9', color: '#475569' }}>
-                    {selected.departments.name}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div style={{ textAlign: 'right', fontSize: '13px', color: '#64748b' }}>
-              <div style={{ fontWeight: '500', color: '#1e293b' }}>{selected.profiles?.full_name}</div>
-              <div style={{ fontSize: '12px' }}>{selected.profiles?.email}</div>
-            </div>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px', display: 'flex' }}>
+            <ArrowLeft size={20} />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.title}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{selected.ticket_no}</div>
           </div>
+        </div>
 
-          {selected.description && (
-            <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
-              {selected.description}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>Durum:</span>
-            {status && (
-              <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '10px', fontWeight: '500', background: status.bg_color, color: status.color }}>
-                {status.name}
+        {/* Ticket bilgisi */}
+        <div style={{ padding: '12px 16px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', fontWeight: '500', background: prio.bg, color: prio.color }}>
+              {PRIORITY_LABEL[selected.priority]}
+            </span>
+            {selected.departments && (
+              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
+                {selected.departments.name}
               </span>
             )}
-            <span style={{ color: '#94a3b8' }}>→</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Durum:</span>
             <select value={selected.status_id} onChange={e => updateStatus(selected.id, e.target.value)}
-              style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+              style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', border: `1px solid ${status?.color || 'var(--border)'}`, background: status?.bg_color || 'var(--bg-elevated)', color: status?.color || 'var(--text-primary)' }}>
               {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
         </div>
 
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px', maxHeight: '320px', overflowY: 'auto' }}>
-            {messages.length === 0 && (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '20px' }}>Henüz mesaj yok.</div>
-            )}
-            {messages.map((m, i) => {
-              const isAgent = m.profiles?.role === 'agent' || m.profiles?.role === 'admin'
-              return (
-                <div key={m.id || i} style={{ display: 'flex', gap: '10px', flexDirection: isAgent ? 'row-reverse' : 'row' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: isAgent ? '#dbeafe' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', color: isAgent ? '#1d4ed8' : '#475569' }}>
-                    {(m.profiles?.full_name || 'U').charAt(0).toUpperCase()}
+        {/* Mesajlar */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {messages.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px' }}>Henüz mesaj yok.</div>}
+          {messages.map((m, i) => {
+            const isAgent = m.profiles?.role === 'agent' || m.profiles?.role === 'admin'
+            return (
+              <div key={m.id || i} style={{ display: 'flex', gap: '8px', flexDirection: isAgent ? 'row-reverse' : 'row' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0, background: isAgent ? 'var(--accent)' : 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '600', color: isAgent ? '#fff' : 'var(--text-secondary)' }}>
+                  {(m.profiles?.full_name || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ maxWidth: '75%' }}>
+                  <div style={{ padding: '9px 12px', fontSize: '13px', lineHeight: '1.5', background: isAgent ? 'var(--accent)' : 'var(--bg-surface)', color: isAgent ? '#fff' : 'var(--text-primary)', borderRadius: isAgent ? '12px 12px 4px 12px' : '12px 12px 12px 4px', border: isAgent ? 'none' : '1px solid var(--border)' }}>
+                    {m.content}
                   </div>
-                  <div>
-                    <div style={{ padding: '10px 14px', fontSize: '13px', lineHeight: '1.5', maxWidth: '480px', background: isAgent ? '#1d4ed8' : '#f1f5f9', color: isAgent ? 'white' : '#1e293b', borderRadius: isAgent ? '12px 12px 4px 12px' : '12px 12px 12px 4px' }}>
-                      {m.content}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-                      {m.profiles?.full_name} · {new Date(m.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', textAlign: isAgent ? 'right' : 'left' }}>
+                    {new Date(m.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <textarea value={reply} onChange={e => setReply(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) sendReply() }}
-              placeholder="Yanıt yazın... (Ctrl+Enter ile gönder)" rows={2}
-              style={{ flex: 1, padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', resize: 'none', fontFamily: 'system-ui' }} />
-            <button onClick={sendReply} disabled={sending}
-              style={{ padding: '0 20px', background: sending ? '#93c5fd' : '#1d4ed8', color: 'white', border: 'none', borderRadius: '8px', cursor: sending ? 'not-allowed' : 'pointer', fontSize: '13px' }}>
-              {sending ? '...' : 'Gönder'}
-            </button>
-          </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Yanıt */}
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg-surface)', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+          <textarea value={reply} onChange={e => setReply(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) sendReply() }}
+            placeholder="Yanıt yazın..." rows={1}
+            style={{ flex: 1, border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', resize: 'none', outline: 'none', background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontFamily: 'inherit' }}
+            onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 100) + 'px' }}
+          />
+          <button onClick={sendReply} disabled={sending || !reply.trim()}
+            style={{ width: '38px', height: '38px', borderRadius: '10px', border: 'none', background: sending || !reply.trim() ? 'var(--border)' : 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Send size={15} color={sending || !reply.trim() ? 'var(--text-muted)' : '#fff'} />
+          </button>
         </div>
       </div>
     )
   }
 
-  // Yeni ticket formu
+  // Yeni ticket
   if (showNew) {
     return (
-      <div style={{ padding: '24px', maxWidth: '600px' }}>
-        <button onClick={() => setShowNew(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px', marginBottom: '16px' }}>
-          ← Geri dön
-        </button>
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px' }}>Yeni ticket</h2>
+      <div style={{ padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <button onClick={() => setShowNew(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex' }}>
+            <ArrowLeft size={20} />
+          </button>
+          <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>Yeni Ticket</h1>
+        </div>
+
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Konu başlığı</label>
-              <input value={newTicket.title} onChange={e => setNew({ ...newTicket, title: e.target.value })}
-                placeholder="Sorununuzu kısaca açıklayın"
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' as any }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Departman</label>
-                <select value={newTicket.department_id}
-                  onChange={e => setNew({ ...newTicket, department_id: e.target.value, category: '' })}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px' }}>
-                  <option value="">Seçin</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Kategori</label>
-                <select value={newTicket.category} onChange={e => setNew({ ...newTicket, category: e.target.value })}
-                  disabled={!newTicket.department_id}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', opacity: !newTicket.department_id ? 0.5 : 1 }}>
-                  <option value="">Seçin</option>
-                  {filteredCats.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Konu başlığı</label>
+              <input value={newTicket.title} onChange={e => setNew({ ...newTicket, title: e.target.value })} placeholder="Sorununuzu kısaca açıklayın" style={inputStyle} />
             </div>
             <div>
-              <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Öncelik</label>
-              <select value={newTicket.priority} onChange={e => setNew({ ...newTicket, priority: e.target.value })}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Departman</label>
+              <select value={newTicket.department_id} onChange={e => setNew({ ...newTicket, department_id: e.target.value, category: '' })} style={selectStyle}>
+                <option value="">Seçin</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Kategori</label>
+              <select value={newTicket.category} onChange={e => setNew({ ...newTicket, category: e.target.value })} disabled={!newTicket.department_id} style={{ ...selectStyle, opacity: !newTicket.department_id ? 0.5 : 1 }}>
+                <option value="">Seçin</option>
+                {filteredCats.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Öncelik</label>
+              <select value={newTicket.priority} onChange={e => setNew({ ...newTicket, priority: e.target.value })} style={selectStyle}>
                 <option value="low">Düşük</option>
                 <option value="medium">Orta</option>
                 <option value="high">Yüksek</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '6px' }}>Açıklama</label>
-              <textarea value={newTicket.description} onChange={e => setNew({ ...newTicket, description: e.target.value })}
-                placeholder="Sorununuzu detaylı açıklayın..." rows={4}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', resize: 'vertical', fontFamily: 'system-ui', boxSizing: 'border-box' as any }} />
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Açıklama</label>
+              <textarea value={newTicket.description} onChange={e => setNew({ ...newTicket, description: e.target.value })} placeholder="Sorununuzu detaylı açıklayın..." rows={4}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: '100px' }} />
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={submitNewTicket} disabled={submitting}
-                style={{ padding: '10px 20px', background: submitting ? '#93c5fd' : '#1d4ed8', color: 'white', border: 'none', borderRadius: '8px', cursor: submitting ? 'not-allowed' : 'pointer', fontSize: '13px' }}>
-                {submitting ? 'Oluşturuluyor...' : 'Ticket oluştur'}
-              </button>
-              <button onClick={() => setShowNew(false)}
-                style={{ padding: '10px 20px', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>
-                İptal
-              </button>
-            </div>
+            <button onClick={submitNewTicket} disabled={submitting}
+              style={{ padding: '12px', background: submitting ? 'var(--border)' : 'var(--accent)', color: 'var(--accent-text)', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+              {submitting ? 'Oluşturuluyor...' : 'Ticket oluştur'}
+            </button>
           </div>
         </div>
       </div>
@@ -317,55 +285,66 @@ export default function TicketsPage() {
 
   // Liste
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '600' }}>Ticketlar</h1>
-        <button onClick={() => setShowNew(true)}
-          style={{ padding: '8px 16px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
-          + Yeni ticket
-        </button>
+    <div style={{ padding: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Ticketlar</h1>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setShowFilter(!showFilter)}
+            style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+            <Filter size={16} />
+          </button>
+          <button onClick={() => setShowNew(true)}
+            style={{ padding: '8px 14px', background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Plus size={14} /> Yeni
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' as any }}>
-        <button onClick={() => setFilter('all')}
-          style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', background: filterStatus === 'all' ? '#0f172a' : 'white', color: filterStatus === 'all' ? 'white' : '#64748b', cursor: 'pointer', fontSize: '13px' }}>
-          Tümü ({tickets.length})
-        </button>
-        {statuses.map(s => {
-          const count = tickets.filter(t => t.status_id === s.id).length
-          if (count === 0) return null
-          return (
-            <button key={s.id} onClick={() => setFilter(s.id)}
-              style={{ padding: '6px 14px', borderRadius: '20px', border: `1px solid ${filterStatus === s.id ? s.color : '#e2e8f0'}`, background: filterStatus === s.id ? s.bg_color : 'white', color: filterStatus === s.id ? s.color : '#64748b', cursor: 'pointer', fontSize: '13px', fontWeight: filterStatus === s.id ? '500' : '400' }}>
-              {s.name} ({count})
-            </button>
-          )
-        })}
-      </div>
+      {/* Filtreler */}
+      {showFilter && (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <button onClick={() => setFilter('all')}
+            style={{ padding: '5px 12px', borderRadius: '20px', border: '1px solid var(--border)', background: filterStatus === 'all' ? 'var(--accent)' : 'var(--bg-surface)', color: filterStatus === 'all' ? 'var(--accent-text)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px' }}>
+            Tümü ({tickets.length})
+          </button>
+          {statuses.map(s => {
+            const count = tickets.filter(t => t.status_id === s.id).length
+            if (count === 0) return null
+            return (
+              <button key={s.id} onClick={() => setFilter(s.id)}
+                style={{ padding: '5px 12px', borderRadius: '20px', border: `1px solid ${filterStatus === s.id ? s.color : 'var(--border)'}`, background: filterStatus === s.id ? s.bg_color : 'var(--bg-surface)', color: filterStatus === s.id ? s.color : 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px', fontWeight: filterStatus === s.id ? '600' : '400' }}>
+                {s.name} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
 
+      {/* Ticket listesi - kart görünümü */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '14px' }}>Ticket bulunamadı.</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>Ticket bulunamadı.</div>
         )}
         {filtered.map(t => {
           const status = getStatus(t.status_id)
           const prio = PRIORITY_STYLE[t.priority]
           return (
-            <div key={t.id} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'monospace', minWidth: '70px' }}>{t.ticket_no}</span>
-              <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => openTicket(t)}>
-                <div style={{ fontSize: '14px', fontWeight: '500', marginBottom: '3px' }}>{t.title}</div>
-                <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  {t.profiles?.full_name} · {t.departments?.name || '-'} · {t.category || '-'} · {new Date(t.created_at).toLocaleDateString('tr-TR')}
+            <div key={t.id} onClick={() => openTicket(t)}
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{t.ticket_no}</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {status && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '8px', fontWeight: '600', background: status.bg_color, color: status.color }}>{status.name}</span>}
+                  <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '8px', fontWeight: '600', background: prio.bg, color: prio.color }}>{PRIORITY_LABEL[t.priority]}</span>
                 </div>
               </div>
-              <select value={t.status_id || ''} onChange={e => { e.stopPropagation(); updateStatus(t.id, e.target.value) }}
-                style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', border: `1px solid ${status?.color || '#e2e8f0'}`, background: status?.bg_color || '#f1f5f9', color: status?.color || '#475569' }}>
-                {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', fontWeight: '500', background: prio.bg, color: prio.color }}>
-                {PRIORITY_LABEL[t.priority]}
-              </span>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px', lineHeight: '1.4' }}>{t.title}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {t.profiles?.full_name} · {t.departments?.name || '-'} · {new Date(t.created_at).toLocaleDateString('tr-TR')}
+              </div>
             </div>
           )
         })}
