@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
@@ -21,7 +21,6 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Kullanıcı adını email formatına çevir
       const email = username.includes('@')
         ? username
         : `${username.toLowerCase()}@destek.local`
@@ -39,12 +38,7 @@ export default function LoginPage() {
         return
       }
 
-      const role = data.role
-      if (role === 'admin' || role === 'agent') {
-        router.push(redirectTo || '/dashboard')
-      } else {
-        router.push(redirectTo || '/dashboard')
-      }
+      router.push(redirectTo || '/dashboard')
       router.refresh()
     } catch {
       setError('Bağlantı hatası. Lütfen tekrar deneyin.')
@@ -77,9 +71,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '6px' }}>
-                Kullanıcı adı
-              </label>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '6px' }}>Kullanıcı adı</label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '14px' }}>@</span>
                 <input
@@ -88,22 +80,20 @@ export default function LoginPage() {
                   onChange={e => setUsername(e.target.value)}
                   placeholder="kullanici_adi"
                   required
-                  style={{ width: '100%', padding: '10px 12px 10px 28px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' as any, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 12px 10px 28px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' as const, outline: 'none' }}
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '6px' }}>
-                Şifre
-              </label>
+              <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '6px' }}>Şifre</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••"
                 required
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' as any, outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' as const, outline: 'none' }}
               />
             </div>
 
@@ -123,5 +113,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Yükleniyor...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }
