@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Auth ve heartbeat sayfaları - giriş gerekmez
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/devices/heartbeat')
+    pathname.startsWith('/api/')
   ) {
     return NextResponse.next()
   }
 
-  const supabase = await createClient()
+  const response = NextResponse.next()
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -32,7 +47,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    if (profile.role === 'admin') return NextResponse.next()
+    if (profile.role === 'admin') return response
 
     if (profile.permissions && profile.permissions.length > 0) {
       const pageMap: Record<string, string> = {
@@ -40,6 +55,7 @@ export async function middleware(request: NextRequest) {
         '/dashboard/documents': 'documents',
         '/dashboard/devices':   'devices',
         '/dashboard/kb':        'kb',
+        '/dashboard/reports':   'reports',
         '/dashboard/profile':   'profile',
         '/dashboard':           'dashboard',
       }
@@ -54,7 +70,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -25,10 +26,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/tickets').then(r => r.json()).then(d => {
-      setTickets(Array.isArray(d) ? d : [])
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const { data: profile } = await supabase
+        .from('profiles').select('role, department_id').eq('id', user.id).single()
+
+      let query = supabase
+        .from('tickets')
+        .select('*, departments(name), ticket_statuses(name, color, bg_color)')
+
+      if (profile?.role === 'customer') {
+        query = query.eq('created_by', user.id)
+      } else if (profile?.role === 'agent') {
+        query = query.eq('department_id', profile.department_id)
+      }
+
+      const { data } = await query
+      setTickets(Array.isArray(data) ? data : [])
       setLoading(false)
-    })
+    }
+    load()
   }, [])
 
   if (loading) return (
@@ -103,7 +123,6 @@ export default function DashboardPage() {
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>Ticket istatistikleri</p>
       </div>
 
-      {/* Stat kartları */}
       <div className="stat-grid">
         {stats.map((s, i) => (
           <div key={i} style={card}>
@@ -116,7 +135,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Haftalık trend */}
       <div style={card}>
         <div style={{ marginBottom: '16px' }}>
           <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>Son 7 Gün — Ticket Trendi</h2>
@@ -139,10 +157,7 @@ export default function DashboardPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Alt grafikler */}
       <div className="chart-grid">
-
-        {/* Durum */}
         <div style={card}>
           <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Durum Dağılımı</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>Ticket durumlarına göre</p>
@@ -173,7 +188,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Departman */}
         <div style={card}>
           <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Departman</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>Departmana göre ticket</p>
@@ -194,7 +208,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Öncelik */}
         <div style={card}>
           <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Öncelik</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>Ticket önceliklerine göre</p>

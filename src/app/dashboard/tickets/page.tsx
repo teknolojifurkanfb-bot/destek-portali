@@ -61,18 +61,40 @@ export default function TicketsPage() {
   })
 
   const loadStaticData = useCallback(async () => {
-    const [sRes, dRes, cRes] = await Promise.all([
-      fetch('/api/statuses'), fetch('/api/departments'), fetch('/api/categories'),
+    const supabase = createClient()
+    const [{ data: sData }, { data: dData }, { data: cData }] = await Promise.all([
+      supabase.from('ticket_statuses').select('*').order('sort_order'),
+      supabase.from('departments').select('*').order('name'),
+      supabase.from('categories').select('*').order('name'),
     ])
-    const [sData, dData, cData] = await Promise.all([sRes.json(), dRes.json(), cRes.json()])
     setStatuses(Array.isArray(sData) ? sData : [])
     setDepts(Array.isArray(dData) ? dData : [])
     setCats(Array.isArray(cData) ? cData : [])
   }, [])
 
   const loadTickets = useCallback(async () => {
-    const res = await fetch('/api/tickets')
-    const data = await res.json()
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('USER:', user?.id)
+    if (!user) return
+
+    const { data: profile } = await supabase
+      .from('profiles').select('role, department_id').eq('id', user.id).single()
+    console.log('PROFILE:', profile)
+
+    let query = supabase
+      .from('tickets')
+      .select('*, profiles!tickets_created_by_fkey(full_name, email), departments(name), ticket_statuses(name, color, bg_color)')
+      .order('created_at', { ascending: false })
+
+    if (profile?.role === 'customer') {
+      query = query.eq('created_by', user.id)
+    } else if (profile?.role === 'agent') {
+      query = query.eq('department_id', profile.department_id)
+    }
+
+    const { data, error } = await query
+    console.log('TICKETS:', data, 'ERROR:', error)
     setTickets(Array.isArray(data) ? data : [])
   }, [])
 
@@ -86,8 +108,12 @@ export default function TicketsPage() {
   }, [])
 
   async function loadMessages(ticket_id: string) {
-    const res = await fetch(`/api/tickets/messages?ticket_id=${ticket_id}`)
-    const data = await res.json()
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('ticket_messages')
+      .select('*, profiles(full_name, email, role)')
+      .eq('ticket_id', ticket_id)
+      .order('created_at')
     setMessages(Array.isArray(data) ? data : [])
   }
 
@@ -105,8 +131,9 @@ export default function TicketsPage() {
     let file_name = null
     let file_type = null
 
+    const supabase = createClient()
+
     if (selectedFile) {
-      const supabase = createClient()
       const ext = selectedFile.name.split('.').pop() || 'bin'
       const safeName = selectedFile.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase()
       const path = `${selected.id}/${Date.now()}_${safeName}`
@@ -121,17 +148,45 @@ export default function TicketsPage() {
 
     setUploading(false)
 
-    await fetch('/api/tickets/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ticket_id: selected.id,
-        content: reply || (file_name ? `📎 ${file_name}` : ''),
-        file_url,
-        file_name,
-        file_type,
-      }),
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSending(false); return }
+
+    await supabase.from('ticket_messages').insert({
+      ticket_id: selected.id,
+      sender_id: user.id,
+      content: reply || (file_name ? `📎 ${file_name}` : ''),
+      is_internal: false,
+      file_url,
+      file_name,
+      file_type,
     })
+
+    // Bildirim gönder
+    const { data: ticket } = await supabase
+      .from('tickets').select('created_by, department_id, title').eq('id', selected.id).single()
+    if (ticket) {
+      const { data: senderProfile } = await supabase
+        .from('profiles').select('role').eq('id', user.id).single()
+      if (senderProfile?.role === 'customer') {
+        const { data: agents } = await supabase
+          .from('profiles').select('id')
+          .eq('department_id', ticket.department_id)
+          .in('role', ['agent', 'admin'])
+        for (const agent of (agents || [])) {
+          if (agent.id !== user.id) {
+            await supabase.from('notifications').insert({
+              user_id: agent.id, title: '💬 Yeni Mesaj', message: ticket.title,
+              link: '/dashboard/tickets', type: 'info',
+            })
+          }
+        }
+      } else if (ticket.created_by !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: ticket.created_by, title: '💬 Yeni Mesaj', message: ticket.title,
+          link: '/dashboard/tickets', type: 'info',
+        })
+      }
+    }
 
     setReply('')
     setSelectedFile(null)
@@ -140,24 +195,47 @@ export default function TicketsPage() {
   }
 
   async function updateStatus(ticketId: string, status_id: string) {
+    const supabase = createClient()
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status_id } : t))
     if (selected?.id === ticketId) setSelected(prev => prev ? { ...prev, status_id } : null)
-    fetch('/api/tickets', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: ticketId, status_id }),
-    })
+    await supabase.from('tickets').update({ status_id }).eq('id', ticketId)
   }
 
   async function submitNewTicket() {
     if (!newTicket.title || submitting) return
     setSubmitting(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSubmitting(false); return }
     const defaultStatus = statuses.find(s => s.is_default) || statuses[0]
-    await fetch('/api/tickets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...newTicket, status_id: defaultStatus?.id }),
+    await supabase.from('tickets').insert({
+      title: newTicket.title,
+      description: newTicket.description,
+      category: newTicket.category,
+      priority: newTicket.priority,
+      department_id: newTicket.department_id,
+      status_id: defaultStatus?.id,
+      created_by: user.id,
     })
+
+    // Departmandaki agent/adminlere bildirim gönder
+    if (newTicket.department_id) {
+      const { data: agents } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('department_id', newTicket.department_id)
+        .in('role', ['agent', 'admin'])
+      for (const agent of (agents || [])) {
+        await supabase.from('notifications').insert({
+          user_id: agent.id,
+          title: '🎫 Yeni Ticket',
+          message: newTicket.title,
+          link: '/dashboard/tickets',
+          type: 'info',
+        })
+      }
+    }
+
     await loadTickets()
     setShowNew(false)
     setNew({ title: '', description: '', category: '', priority: 'medium', department_id: '' })
@@ -208,7 +286,6 @@ export default function TicketsPage() {
           </div>
         </div>
 
-        {/* Mesajlar */}
         <div style={{ background: 'var(--bg-surface)', borderRadius: '14px', border: '1px solid var(--border)', padding: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px', maxHeight: '320px', overflowY: 'auto' }}>
             {messages.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px' }}>Henüz mesaj yok.</div>}
@@ -220,13 +297,11 @@ export default function TicketsPage() {
                     {(m.profiles?.full_name || 'U').charAt(0).toUpperCase()}
                   </div>
                   <div style={{ maxWidth: '80%' }}>
-                    {/* Metin */}
                     {m.content && !m.file_url && (
                       <div style={{ padding: '8px 12px', fontSize: '13px', lineHeight: '1.5', background: isAgent ? 'var(--accent)' : 'var(--bg-elevated)', color: isAgent ? '#fff' : 'var(--text-primary)', borderRadius: isAgent ? '12px 12px 4px 12px' : '12px 12px 12px 4px' }}>
                         {m.content}
                       </div>
                     )}
-                    {/* Dosya eki */}
                     {m.file_url && (
                       <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '280px' }}>
                         {isImage(m.file_type) ? (
@@ -258,7 +333,6 @@ export default function TicketsPage() {
             })}
           </div>
 
-          {/* Seçili dosya önizleme */}
           {selectedFile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: '8px', marginBottom: '10px' }}>
               {selectedFile.type.startsWith('image/') ? <Image size={16} color="var(--accent-light-text)" /> : <FileText size={16} color="var(--accent-light-text)" />}
@@ -269,7 +343,6 @@ export default function TicketsPage() {
             </div>
           )}
 
-          {/* Yanıt kutusu */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
             <input ref={fileRef} type="file" onChange={e => setSelectedFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
             <button onClick={() => fileRef.current?.click()} style={{ padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', flexShrink: 0 }}>
@@ -343,7 +416,6 @@ export default function TicketsPage() {
     )
   }
 
-  // Liste
   return (
     <div style={{ padding: '16px' }}>
       <style>{`

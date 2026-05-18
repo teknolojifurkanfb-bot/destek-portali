@@ -8,7 +8,7 @@ import type { ThemeName } from '@/lib/themes'
 import {
   LayoutDashboard, Ticket, FolderOpen, BookOpen,
   Users, Tags, Building2, Palette, LogOut,
-  ChevronLeft, ChevronRight, Plus, Menu, X, Monitor, Bell,
+  ChevronLeft, ChevronRight, Plus, Menu, X, Monitor, Bell, BarChart3,
 } from 'lucide-react'
 
 interface Notification {
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/documents', icon: FolderOpen,      label: 'Dokümanlar',    roles: ['customer', 'agent', 'admin'],  key: 'documents' },
   { href: '/dashboard/kb',        icon: BookOpen,        label: 'Bilgi Bankası', roles: ['customer', 'agent', 'admin'],  key: 'kb' },
   { href: '/dashboard/devices',   icon: Monitor,         label: 'Cihazlar',      roles: ['agent', 'admin'],              key: 'devices' },
+  { href: '/dashboard/reports',   icon: BarChart3,       label: 'Raporlar',      roles: ['agent', 'admin'],              key: 'reports' },
 ]
 
 const ADMIN_ITEMS = [
@@ -86,38 +87,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     loadNotifications()
-    const interval = setInterval(loadNotifications, 30000)
+    const interval = setInterval(loadNotifications, 5000)
     return () => clearInterval(interval)
   }, [])
 
   async function loadNotifications() {
-    const res = await fetch('/api/notifications')
-    if (res.ok) {
-      const data = await res.json()
-      setNotifications(Array.isArray(data) ? data : [])
-    }
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setNotifications(Array.isArray(data) ? data : [])
   }
 
   async function markRead(id: string) {
-    await fetch('/api/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
+    const supabase = createClient()
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
     loadNotifications()
   }
 
   async function markAllRead() {
-    await fetch('/api/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: 'all' }),
-    })
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id)
     loadNotifications()
   }
 
   async function clearAll() {
-    await fetch('/api/notifications', { method: 'DELETE' })
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('notifications').delete().eq('user_id', user.id)
     setNotifications([])
     setShowNotif(false)
   }
@@ -168,10 +173,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return `${Math.floor(hours / 24)} gün önce`
   }
 
-  // Sidebar içeriği — collapsed prop alıyor
   const SidebarInner = ({ isCollapsed }: { isCollapsed: boolean }) => (
     <>
-      {/* Logo */}
       <div style={{ padding: isCollapsed ? '18px 0' : '18px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)', minHeight: '64px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
         <div style={{ width: '34px', height: '34px', background: 'var(--accent)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ fontSize: '18px' }}>🖥️</span>
@@ -189,7 +192,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </div>
 
-      {/* Nav */}
       <nav style={{ flex: 1, padding: isCollapsed ? '10px 8px' : '10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
         {visibleNav.map(item => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -244,10 +246,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </nav>
 
-      {/* Alt kısım */}
       <div style={{ padding: isCollapsed ? '10px 8px' : '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-
-        {/* Tema */}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setShowTheme(!showTheme)}
             title={isCollapsed ? 'Tema' : ''}
@@ -288,7 +287,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </div>
 
-        {/* Profil */}
         <a href="/dashboard/profile"
           title={isCollapsed ? userName : ''}
           style={{
@@ -309,7 +307,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </a>
 
-        {/* Çıkış */}
         <button onClick={handleLogout}
           title={isCollapsed ? 'Çıkış yap' : ''}
           style={{
@@ -342,7 +339,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)', fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-        {/* Desktop Sidebar */}
         <aside className="desktop-sidebar" style={{
           width: collapsed ? '64px' : '240px',
           background: 'var(--bg-sidebar)',
@@ -362,7 +358,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </aside>
 
-        {/* Mobil Sidebar */}
         {mobileOpen && (
           <div className="mobile-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
             <div onClick={() => setMobileOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
@@ -376,7 +371,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
-        {/* Ana içerik */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           <header style={{
             height: '56px', background: 'var(--bg-surface)',
@@ -392,7 +386,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
             <div style={{ flex: 1 }} />
 
-            {/* Bildirim zili */}
             <div style={{ position: 'relative' }}>
               <button onClick={() => { setShowNotif(!showNotif); setShowTheme(false) }} style={{
                 position: 'relative', background: 'none', border: '1px solid var(--border)',

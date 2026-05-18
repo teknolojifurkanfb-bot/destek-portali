@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
+  const db = createServiceClient()
   const { searchParams } = new URL(request.url)
   const ticket_id = searchParams.get('ticket_id')
   if (!ticket_id) return NextResponse.json({ error: 'ticket_id gerekli' }, { status: 400 })
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('ticket_messages')
     .select('*, profiles(full_name, email, role)')
     .eq('ticket_id', ticket_id)
@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
-
+  const db = createServiceClient()
   const body = await request.json()
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('ticket_messages')
     .insert({
       ticket_id: body.ticket_id,
@@ -33,28 +33,20 @@ export async function POST(request: NextRequest) {
       file_name: body.file_name || null,
       file_type: body.file_type || null,
     })
-    .select()
-    .single()
-
+    .select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Ticket bilgilerini al
-  const { data: ticket } = await supabase
+  const { data: ticket } = await db
     .from('tickets')
     .select('ticket_no, title, created_by, department_id')
-    .eq('id', body.ticket_id)
-    .single()
+    .eq('id', body.ticket_id).single()
 
   if (ticket) {
-    const { data: sender } = await supabase
-      .from('profiles')
-      .select('full_name, role')
-      .eq('id', user.id)
-      .single()
+    const { data: sender } = await db
+      .from('profiles').select('full_name, role').eq('id', user.id).single()
 
-    // Ticket sahibine bildirim — eğer agent/admin mesaj attıysa
     if (sender?.role !== 'customer' && ticket.created_by !== user.id) {
-      await supabase.from('notifications').insert({
+      await db.from('notifications').insert({
         user_id: ticket.created_by,
         title: '💬 Yeni Mesaj',
         message: `${ticket.ticket_no}: ${sender?.full_name} yanıt verdi`,
@@ -63,17 +55,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Agent/adminlere bildirim — eğer customer mesaj attıysa
     if (sender?.role === 'customer') {
-      const { data: agents } = await supabase
-        .from('profiles')
-        .select('id')
+      const { data: agents } = await db
+        .from('profiles').select('id')
         .eq('department_id', ticket.department_id)
         .in('role', ['agent', 'admin'])
-
       for (const agent of agents || []) {
         if (agent.id !== user.id) {
-          await supabase.from('notifications').insert({
+          await db.from('notifications').insert({
             user_id: agent.id,
             title: '💬 Yeni Mesaj',
             message: `${ticket.ticket_no}: Müşteri yanıt verdi`,
